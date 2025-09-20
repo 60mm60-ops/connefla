@@ -159,7 +159,7 @@ function clearHistory(){
 }
 
 // =============================
-// クリップボード機能（新規追加）
+// クリップボード機能
 // =============================
 function copyToClipboard(text) {
   if (!text) return;
@@ -276,11 +276,11 @@ function updateSelectedNodeInfo(){
   const active=document.querySelector(`.state-btn.${node.state}`); if(active) active.classList.add('active');
 }
 // =============================
-// ツリー描画（C字カーブ、S字禁止）
+// ツリー描画
 // =============================
 function renderTree(){
-  const svg=document.getElementById('treeSvg'); if(!svg) return;
-  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const svg=d3.select('#treeSvg'); if(svg.empty()) return;
+  svg.selectAll('*').remove();
   const nodesData = Object.values(treeState.nodes);
   if (nodesData.length === 0) return;
   
@@ -304,7 +304,7 @@ function renderTree(){
     .append('path')
     .attr('class', 'connection-line')
     .attr('d', linkGenerator)
-    .attr('transform', `translate(${svg.getBoundingClientRect().width / 2}, 0)`);
+    .attr('transform', `translate(${svg.node().getBoundingClientRect().width / 2}, 0)`);
 
   svg.selectAll('.color-node')
     .data(treeData.descendants())
@@ -312,7 +312,7 @@ function renderTree(){
     .append('g')
     .attr('class', d => `color-node ${treeState.nodes[d.id].state}`)
     .attr('data-node-id', d => d.id)
-    .attr('transform', d => `translate(${d.y + svg.getBoundingClientRect().width / 2}, ${d.x})`)
+    .attr('transform', d => `translate(${d.y + svg.node().getBoundingClientRect().width / 2}, ${d.x})`)
     .on('click', (ev, d) => {
       ev.stopPropagation();
       selectNode(d.id);
@@ -354,7 +354,7 @@ function renderTree(){
 
   const maxDepth = treeData.descendants().reduce((max, d) => Math.max(max, d.depth), 0);
   const svgHeight = maxDepth * 160 + 320;
-  svg.style.height = `${svgHeight}px`;
+  d3.select('#treeSvg').style('height', `${svgHeight}px`);
 
   updateViewport();
 }
@@ -557,7 +557,7 @@ function initialize(){
   const svg = document.getElementById('treeSvg');
   if(svg) {
     svg.addEventListener('click', e=>{
-      if(e.target === svg) {
+      if(e.target === svg.node()) {
         treeState.selectedNodeId = null;
         updateSelectedNodeInfo();
         renderTree();
