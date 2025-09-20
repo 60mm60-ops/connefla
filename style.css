@@ -53,12 +53,6 @@ body::before {
     z-index: -1;
 }
 
-.app-container {
-    display: flex;
-    height: 100vh;
-    flex-direction: row;
-}
-
 /* スクロールバーカスタマイズ */
 ::-webkit-scrollbar {
     width: 6px;
@@ -75,6 +69,12 @@ body::before {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color);
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    flex-direction: row;
 }
 
 /* Left Panel */
@@ -443,7 +443,7 @@ body::before {
 
 .node-circle.adopted {
     stroke: var(--success-color);
-    stroke-width: 4;
+    stroke-width: 0;
     filter: drop-shadow(0 4px 16px rgba(46, 204, 113, 0.6));
 }
 
