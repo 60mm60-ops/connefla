@@ -368,7 +368,6 @@ function selectNode(nodeId) {
         selectedElement.classList.add('selected');
     }
     
-    // updateSelectedNodeInfo() を呼び出し、ポップアップを表示
     updateSelectedNodeInfo();
     showPopup();
 }
@@ -389,14 +388,12 @@ function updateSelectedNodeInfo() {
     const nodeId = treeState.selectedNodeId;
     
     if (!nodeId || !treeState.nodes[nodeId]) {
-        // ノードが選択されていない場合はポップアップを非表示に
         closePopup();
         return;
     }
     
     const node = treeState.nodes[nodeId];
 
-    // ポップアップのDOM要素を更新
     document.getElementById('popup-color-preview').style.backgroundColor = node.hex;
     document.getElementById('popup-hex-code').textContent = node.hex;
     document.getElementById('popup-hex').textContent = node.hex;
@@ -407,13 +404,11 @@ function updateSelectedNodeInfo() {
     document.getElementById('popup-depth').textContent = node.depth;
     document.getElementById('popup-time').textContent = formatTime(node.createdAt);
     
-    // コピーボタンのデータ属性を更新
     document.querySelector('#popup-hex').parentElement.dataset.value = node.hex;
     document.querySelector('#popup-rgb').parentElement.dataset.value = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
     document.querySelector('#popup-hsl').parentElement.dataset.value = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
     document.querySelector('#popup-css-var').parentElement.dataset.value = `--color-${node.derivation.rule}: ${node.hex}`;
 
-    // 採用・保留・破棄ボタンの active 状態を更新
     document.querySelectorAll('.state-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -422,7 +417,6 @@ function updateSelectedNodeInfo() {
         activeBtn.classList.add('active');
     }
     
-    // コントロールパネルの表示も更新
     const currentSelection = document.getElementById('currentSelection');
     const selectedNodeDisplay = document.getElementById('selectedNodeDisplay');
     const selectedNodeHex = document.getElementById('selectedNodeHex');
@@ -436,7 +430,6 @@ function updateSelectedNodeInfo() {
     selectedNodeDisplay.textContent = node.derivation.rule;
     selectedNodeHex.textContent = node.hex;
 }
-
 
 function renderTree() {
     const svg = document.getElementById('treeSvg');
@@ -533,50 +526,35 @@ function calculateNodePositions() {
     const positions = {};
     if (!treeState.rootId) return positions;
 
-    // Define layout parameters
-    const horizontalSpacing = 200; // 水平方向のノード間隔
-    const verticalSpacing = 160;   // 垂直方向のノード間隔 (レベル間の距離)
+    const horizontalSpacing = 200;
+    const verticalSpacing = 160;
 
-    // Group nodes by depth and parent
     const levelNodes = {};
-    const parentChildrenCount = {};
     Object.values(treeState.nodes).forEach(node => {
         if (!levelNodes[node.depth]) levelNodes[node.depth] = [];
         levelNodes[node.depth].push(node);
-        
-        if (node.parentId) {
-            if (!parentChildrenCount[node.parentId]) parentChildrenCount[node.parentId] = 0;
-            parentChildrenCount[node.parentId]++;
-        }
     });
 
-    // Position the root node at the center
     positions[treeState.rootId] = { x: 0, y: 0 };
     
-    // Recursively position children
-    function positionChildren(parentId, parentX, parentY, totalSiblings, siblingIndex, level) {
+    function positionChildren(parentId, parentX, parentY, level) {
         const children = Object.values(treeState.nodes).filter(node => node.parentId === parentId);
         const numChildren = children.length;
         
-        // Children's vertical position is below the parent
-        const childY = parentY + verticalSpacing;
+        if (numChildren === 0) return;
 
-        // Spread children horizontally
+        const childY = parentY + verticalSpacing;
+        const totalWidth = (numChildren - 1) * horizontalSpacing;
+        const startX = parentX - totalWidth / 2;
+        
         children.forEach((node, index) => {
-            // Calculate an offset based on the number of children
-            const totalWidth = (numChildren - 1) * horizontalSpacing;
-            const startX = parentX - totalWidth / 2;
             const childX = startX + index * horizontalSpacing;
-            
             positions[node.id] = { x: childX, y: childY };
-            
-            // Recursively position grandchildren
-            positionChildren(node.id, childX, childY, numChildren, index, level + 1);
+            positionChildren(node.id, childX, childY, level + 1);
         });
     }
 
-    // Start positioning from the root
-    positionChildren(treeState.rootId, 0, 0, 1, 0, 1);
+    positionChildren(treeState.rootId, 0, 0, 1);
     
     return positions;
 }
@@ -870,7 +848,6 @@ function loadFromLocalStorage() {
                 updateStats();
                 if (Object.keys(treeState.nodes).length > 0) {
                     renderTree();
-                    // selectNode()を呼び出すのではなく、ポップアップの状態を直接更新
                     if (treeState.selectedNodeId) {
                         updateSelectedNodeInfo();
                         showPopup();
