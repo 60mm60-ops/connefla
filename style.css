@@ -358,7 +358,6 @@ body {
     stroke: var(--accent-color);
     stroke-width: 3px;
     filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
-    /* clip-path の行を削除しました */
 }
 
 .node-circle.pending {
@@ -383,8 +382,6 @@ body {
     -webkit-user-select: none;
     pointer-events: none;
 }
-
-/* 以前の .detail-panel は削除 */
 
 /* ポップアップのスタイル (新規追加) */
 .node-popup {
@@ -504,7 +501,7 @@ body {
 /* 通知バー */
 .notification {
     position: fixed;
-    bottom: -100px; /* Initially hidden */
+    bottom: -100px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--bg-hover);
