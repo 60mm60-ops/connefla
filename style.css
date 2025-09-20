@@ -1,134 +1,150 @@
-/* =============================
-   ベース変数
-============================= */
 :root {
-  --bg-dark: #0d0d0d;
-  --bg-primary: #1a1a1a;
+  --bg-primary: #121212;
+  --bg-dark: #0a0a0a;
+  --bg-hover: #1f1f1f;
   --border-color: #333;
-  --accent-color: #4ECDC4;
-  --text-color: #e2e8f0;
+  --text-primary: #e0e0e0;
   --text-muted: #888;
-  --success: #4ade80;
-  --warning: #facc15;
-  --error: #f87171;
+  --accent-color: #4ecdc4;
+  --accent-hover: #67e8df;
+  --color-adopted: #4ecdc4;
+  --color-pending: #f1c40f;
+  --color-rejected: #e74c3c;
 }
 
-/* =============================
-   全体
-============================= */
-* { box-sizing: border-box; }
-
-html, body {
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html, body {
   height: 100%;
   font-family: 'Inter', sans-serif;
-  background: var(--bg-dark);
-  color: var(--text-color);
-}
-
-.app-container {
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
 }
 
-/* =============================
-   上パネル
-============================= */
-.top-panel {
-  flex: 0 0 auto;
-  padding: 12px;
+/* ======================
+   レイアウト全体
+====================== */
+.top-menu {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: var(--bg-dark);
+  padding: 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
-.top-panel .header {
-  text-align: center;
-  margin-bottom: 12px;
-}
-.top-panel h1 {
-  margin: 0;
-  font-size: 1.6rem;
-  color: var(--accent-color);
-}
-.top-panel p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-.version-badge {
-  display: inline-block;
-  margin-top: 4px;
-  background: #333;
-  color: #aaa;
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 8px;
+.tree-panel {
+  flex: 1 1 auto;
+  overflow: auto;
+  background: var(--bg-primary);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
-/* =============================
-   セクション共通
-============================= */
-.section.card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
+.canvas-container {
+  width: 100%;
+  min-height: 400px;
+  position: relative;
+}
+
+.tree-svg {
+  width: 100%;
+  height: auto;
+  min-height: 400px;
+  overflow: visible;
+}
+
+.bottom-menu {
+  background: var(--bg-dark);
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* ======================
+   共通UIパーツ
+====================== */
+.section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section:last-of-type {
+  border-bottom: none;
 }
 
 .section h3 {
-  margin: 0 0 10px;
   font-size: 1rem;
-  color: var(--accent-color);
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-/* =============================
-   入力・ボタン
-============================= */
+
+/* 入力 */
 .color-input-group {
   display: flex;
   gap: 8px;
-  margin-bottom: 8px;
-}
-.color-picker {
-  width: 48px;
-  height: 48px;
-  border: none;
-  border-radius: 6px;
-  padding: 0;
-}
-.hex-input {
-  flex: 1;
-  padding: 8px;
-  background: #111;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-color);
+  margin-bottom: 12px;
 }
 
-.btn {
-  display: inline-block;
-  background: var(--accent-color);
+.color-picker {
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.hex-input {
+  flex-grow: 1;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   padding: 8px 12px;
-  color: #000;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 1rem;
+}
+
+/* ボタン */
+.btn {
+  width: 100%;
+  background-color: var(--accent-color);
+  color: #0a0a0a;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
   margin-top: 6px;
 }
-.btn:hover { opacity: 0.9; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn:disabled {
+  background-color: var(--border-color);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
 
 .btn-secondary {
-  background: #333;
-  color: #eee;
+  background-color: var(--border-color);
+  color: var(--text-primary);
 }
-.btn-primary {
-  background: var(--accent-color);
-  color: #000;
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #444;
 }
 
 .btn-group {
@@ -136,185 +152,235 @@ html, body {
   flex-wrap: wrap;
   gap: 8px;
 }
-.btn-group.vertical {
-  flex-direction: column;
-  align-items: stretch;
+
+.btn-group .btn {
+  flex: 1 1 calc(50% - 4px);
+  font-size: 0.9rem;
+  padding: 10px;
 }
 
-.btn-branch {
-  flex: 1 1 45%;
-  min-width: 40%;
-}
-.btn-branch.enabled { color: #000; }
-
-/* =============================
-   ツリーエリア
-============================= */
-.tree-panel {
-  flex: 1 1 auto;
-  background: var(--bg-dark);
-  overflow: auto;
-  position: relative;
-}
-
-.canvas-container {
-  width: 100%;
-  height: 100%;
-  text-align: center;
-}
-.tree-svg {
-  width: 100%;
-  min-height: 400px;
-  overflow: visible;
-}
-
-/* 線（C字カーブ） */
-.connection-line {
-  fill: none;
-  stroke: #555;
-  stroke-width: 2px;
-}
-
-/* ノード */
-.color-node { cursor: pointer; }
-.node-circle {
-  stroke: #222;
-  stroke-width: 2px;
-}
-.color-node.selected .node-circle {
-  stroke: var(--accent-color);
-  stroke-width: 3px;
-}
-.color-node.adopted .node-circle { stroke: var(--success); }
-.color-node.rejected .node-circle { stroke: var(--error); }
-
-.node-text {
-  fill: var(--text-color);
-  text-anchor: middle;
-  alignment-baseline: middle;
-  font-size: 10px;
-}
-/* =============================
-   下パネル
-============================= */
-.bottom-panel {
-  flex: 0 0 auto;
-  padding: 12px;
-  background: var(--bg-dark);
-  border-top: 1px solid var(--border-color);
-}
-
-/* 統計 */
-.stats-grid {
+/* ======================
+   選択中の色
+====================== */
+.current-selection-info {
   display: flex;
-  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 12px;
+  background-color: var(--bg-primary);
+  border-radius: 8px;
+  margin: 12px 0;
 }
-.stat-card {
-  flex: 1;
-  background: #111;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 8px;
-  text-align: center;
+
+.current-selection-info .hex-code {
+  font-family: monospace;
+  font-weight: bold;
 }
-.stat-number {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--accent-color);
+
+.node-details {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
 }
-.stat-label {
-  font-size: 0.8rem;
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.detail-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.detail-label {
   color: var(--text-muted);
 }
 
-/* 履歴 */
+.state-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.state-btn {
+  flex: 1;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.state-btn.adopted { color: var(--color-adopted); border-color: var(--color-adopted); }
+.state-btn.pending { color: var(--color-pending); border-color: var(--color-pending); }
+.state-btn.rejected { color: var(--color-rejected); border-color: var(--color-rejected); }
+
+.state-btn.adopted.active { background-color: var(--color-adopted); color: black; }
+.state-btn.pending.active { background-color: var(--color-pending); color: black; }
+.state-btn.rejected.active { background-color: var(--color-rejected); color: white; }
+
+/* ======================
+   統計 & 履歴
+====================== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-card {
+  background-color: var(--bg-primary);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
 .history-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px;
-  background: #111;
-  border: 1px solid var(--border-color);
+  padding: 8px;
+  background-color: var(--bg-primary);
   border-radius: 6px;
   margin-bottom: 6px;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
-.history-item:hover { background: #222; }
+
+.history-item:hover {
+  background-color: var(--bg-hover);
+}
+
 .history-color {
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
 }
-.history-info { flex: 1; }
-.history-hex { font-weight: bold; font-size: 0.9rem; }
-.history-time { font-size: 0.75rem; color: var(--text-muted); }
 
-/* 書き出し */
-.export-group {
-  margin-bottom: 12px;
-}
-.export-group h4 {
-  margin: 0 0 6px;
-  font-size: 0.9rem;
-  color: var(--accent-color);
-}
-.export-group label {
-  display: block;
+.history-hex {
   font-size: 0.85rem;
-  margin-bottom: 4px;
+  font-family: monospace;
+  font-weight: bold;
 }
 
-/* =============================
-   スライダー・ズーム
-============================= */
-.slider-group {
-  margin-bottom: 12px;
-}
+/* ======================
+   スライダー
+====================== */
 .slider-container {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .slider {
-  flex: 1;
+  flex-grow: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
 }
-.slider-value {
-  min-width: 20px;
-  text-align: right;
-}
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.zoom-controls button {
-  background: #333;
-  color: #eee;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 1rem;
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent-color);
+  border-radius: 50%;
   cursor: pointer;
 }
 
-/* =============================
+.slider-value {
+  font-weight: bold;
+  width: 20px;
+  text-align: right;
+}
+
+/* ======================
+   ツリー
+====================== */
+.connection-line {
+  stroke: var(--border-color);
+  stroke-width: 2px;
+  fill: none;
+}
+
+.color-node {
+  cursor: pointer;
+  transition: transform 0.2s ease-out;
+}
+
+.node-circle.adopted {
+  stroke: var(--color-adopted);
+  stroke-width: 3px;
+}
+
+.node-circle.pending {
+  stroke: var(--color-pending);
+  stroke-width: 2px;
+}
+
+.node-circle.rejected {
+  stroke: var(--color-rejected);
+  stroke-width: 2px;
+}
+
+.color-node.selected .node-circle {
+  stroke: var(--accent-color);
+  stroke-width: 4px;
+}
+
+.node-text {
+  fill: var(--text-primary);
+  text-anchor: middle;
+  user-select: none;
+  pointer-events: none;
+  font-size: 0.7rem;
+}
+
+/* ======================
    通知
-============================= */
+====================== */
 .notification {
   position: fixed;
-  bottom: 20px;
+  bottom: -100px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-  z-index: 1000;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  transition: bottom 0.3s ease-out;
+  text-align: center;
+  white-space: nowrap;
 }
-.notification.show { opacity: 1; }
-.notification.success { background: var(--success); color: #000; }
-.notification.warning { background: var(--warning); color: #000; }
-.notification.error { background: var(--error); color: #000; }
-.notification.info { background: var(--accent-color); color: #000; }
+
+.notification.show {
+  bottom: 24px;
+}
+
+.notification.success {
+  background-color: var(--accent-color);
+  color: black;
+}
+
+.notification.error {
+  background-color: var(--color-rejected);
+  color: white;
+}
