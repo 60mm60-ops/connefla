@@ -565,13 +565,16 @@ function calculateNodePositions() {
         const children = levelNodes[level] ? levelNodes[level][parentId] : [];
         const numChildren = children.length;
         
-        // Calculate total angular spread for children
+        // 子供がいない場合は終了
+        if (numChildren === 0) return;
+
+        // 子ノードの配置を調整するための角度と半径
         const totalAngleSpread = Math.PI * 1.5; // For a 270-degree spread
         const startAngle = parentAngle - totalAngleSpread / 2 + Math.PI;
+        const distance = levelSpacing * level;
         
         children.forEach((node, index) => {
             const angle = startAngle + (totalAngleSpread / (numChildren + 1)) * (index + 1);
-            const distance = levelSpacing * level;
             
             const x = parentX + distance * Math.cos(angle);
             const y = parentY + distance * Math.sin(angle);
