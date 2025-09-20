@@ -31,36 +31,24 @@ body {
     grid-template-columns: 320px 1fr;
 }
 
-/* モバイル対応 */
+/* スマホでも横並びを維持 */
 @media (max-width: 768px) {
     body {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
+        grid-template-columns: 240px 1fr; /* メニュー幅を縮小 */
     }
     
     .control-panel {
-        height: auto;
-        max-height: 40vh;
-        overflow-y: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
+        padding: 16px;
+        overflow-y: auto; /* 縦スクロール可能 */
     }
-    
-    .canvas-area {
-        height: 60vh;
-    }
-    
-    .header h1 {
-        font-size: 1.4rem;
-    }
-    
+
     .section {
-        padding: 16px 0;
+        padding: 12px 0;
     }
-    
+
     .btn-group .btn {
-        font-size: 0.8rem;
-        padding: 8px;
+        font-size: 0.75rem;
+        padding: 6px;
     }
 }
 
