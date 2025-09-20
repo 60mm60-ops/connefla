@@ -368,84 +368,75 @@ function selectNode(nodeId) {
         selectedElement.classList.add('selected');
     }
     
+    // updateSelectedNodeInfo() を呼び出し、ポップアップを表示
     updateSelectedNodeInfo();
+    showPopup();
+}
+
+function closePopup() {
+    document.getElementById('node-popup').style.display = 'none';
+    document.querySelectorAll('.color-node').forEach(node => {
+        node.classList.remove('selected');
+    });
+    treeState.selectedNodeId = null;
+}
+
+function showPopup() {
+    document.getElementById('node-popup').style.display = 'block';
 }
 
 function updateSelectedNodeInfo() {
     const nodeId = treeState.selectedNodeId;
-    const selectedNodeInfo = document.getElementById('selectedNodeInfo');
-    const noSelection = document.getElementById('noSelection');
+    
+    if (!nodeId || !treeState.nodes[nodeId]) {
+        // ノードが選択されていない場合はポップアップを非表示に
+        closePopup();
+        return;
+    }
+    
+    const node = treeState.nodes[nodeId];
+
+    // ポップアップのDOM要素を更新
+    document.getElementById('popup-color-preview').style.backgroundColor = node.hex;
+    document.getElementById('popup-hex-code').textContent = node.hex;
+    document.getElementById('popup-hex').textContent = node.hex;
+    document.getElementById('popup-rgb').textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
+    document.getElementById('popup-hsl').textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
+    document.getElementById('popup-css-var').textContent = `--color-${node.derivation.rule}: ${node.hex}`;
+    document.getElementById('popup-rule').textContent = node.derivation.rule;
+    document.getElementById('popup-depth').textContent = node.depth;
+    document.getElementById('popup-time').textContent = formatTime(node.createdAt);
+    
+    // コピーボタンのデータ属性を更新
+    document.querySelector('#popup-hex').parentElement.dataset.value = node.hex;
+    document.querySelector('#popup-rgb').parentElement.dataset.value = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
+    document.querySelector('#popup-hsl').parentElement.dataset.value = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
+    document.querySelector('#popup-css-var').parentElement.dataset.value = `--color-${node.derivation.rule}: ${node.hex}`;
+
+    // 採用・保留・破棄ボタンの active 状態を更新
+    document.querySelectorAll('.state-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.state-btn.${node.state}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    // コントロールパネルの表示も更新
     const currentSelection = document.getElementById('currentSelection');
     const selectedNodeDisplay = document.getElementById('selectedNodeDisplay');
     const selectedNodeHex = document.getElementById('selectedNodeHex');
     const selectionHint = document.getElementById('selectionHint');
     const branchButtons = document.querySelectorAll('.btn-group .btn');
     
-    if (!nodeId || !treeState.nodes[nodeId]) {
-        selectedNodeInfo.style.display = 'none';
-        noSelection.style.display = 'block';
-        currentSelection.style.display = 'none';
-        selectionHint.style.display = 'block';
-        branchButtons.forEach(btn => btn.disabled = true);
-        return;
-    }
-    
-    const node = treeState.nodes[nodeId];
-    selectedNodeInfo.style.display = 'block';
-    noSelection.style.display = 'none';
     currentSelection.style.display = 'flex';
     selectionHint.style.display = 'none';
     branchButtons.forEach(btn => btn.disabled = false);
 
     selectedNodeDisplay.textContent = node.derivation.rule;
     selectedNodeHex.textContent = node.hex;
-    
-    const preview = document.getElementById('selectedColorPreview');
-    if (preview) {
-        preview.style.backgroundColor = node.hex;
-    }
-    
-    const hexEl = document.getElementById('selectedHex');
-    const rgbEl = document.getElementById('selectedRgb');
-    const hslEl = document.getElementById('selectedHsl');
-    const cssVarEl = document.getElementById('selectedCssVar');
-    
-    if (hexEl) hexEl.textContent = node.hex;
-    if (rgbEl) rgbEl.textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
-    if (hslEl) hslEl.textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
-    if (cssVarEl) cssVarEl.textContent = `--color-${node.derivation.rule}: ${node.hex}`;
-    
-    const formats = document.querySelectorAll('.color-format');
-    const values = [
-        node.hex, 
-        `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`, 
-        `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`,
-        `--color-${node.derivation.rule}: ${node.hex}`
-    ];
-    
-    formats.forEach((el, i) => {
-        if (values[i]) {
-            el.dataset.value = values[i];
-        }
-    });
-    
-    const ruleEl = document.getElementById('selectedRule');
-    const depthEl = document.getElementById('selectedDepth');
-    const timeEl = document.getElementById('selectedTime');
-    
-    if (ruleEl) ruleEl.textContent = node.derivation.rule;
-    if (depthEl) depthEl.textContent = node.depth;
-    if (timeEl) timeEl.textContent = formatTime(node.createdAt);
-    
-    document.querySelectorAll('.state-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const activeBtn = document.querySelector(`.state-btn.${node.state}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-    }
 }
+
 
 function renderTree() {
     const svg = document.getElementById('treeSvg');
@@ -541,51 +532,51 @@ function renderTree() {
 function calculateNodePositions() {
     const positions = {};
     if (!treeState.rootId) return positions;
-    
+
     // Define layout parameters
-    const levelSpacing = 160; // Distance between levels
-    
+    const horizontalSpacing = 200; // 水平方向のノード間隔
+    const verticalSpacing = 160;   // 垂直方向のノード間隔 (レベル間の距離)
+
     // Group nodes by depth and parent
     const levelNodes = {};
+    const parentChildrenCount = {};
     Object.values(treeState.nodes).forEach(node => {
-        if (!levelNodes[node.depth]) {
-            levelNodes[node.depth] = {};
+        if (!levelNodes[node.depth]) levelNodes[node.depth] = [];
+        levelNodes[node.depth].push(node);
+        
+        if (node.parentId) {
+            if (!parentChildrenCount[node.parentId]) parentChildrenCount[node.parentId] = 0;
+            parentChildrenCount[node.parentId]++;
         }
-        if (!levelNodes[node.depth][node.parentId]) {
-            levelNodes[node.depth][node.parentId] = [];
-        }
-        levelNodes[node.depth][node.parentId].push(node);
     });
-    
+
     // Position the root node at the center
     positions[treeState.rootId] = { x: 0, y: 0 };
     
     // Recursively position children
-    function positionChildren(parentId, parentX, parentY, parentAngle, level) {
-        const children = levelNodes[level] ? levelNodes[level][parentId] : [];
+    function positionChildren(parentId, parentX, parentY, totalSiblings, siblingIndex, level) {
+        const children = Object.values(treeState.nodes).filter(node => node.parentId === parentId);
         const numChildren = children.length;
         
-        // 子供がいない場合は終了
-        if (numChildren === 0) return;
+        // Children's vertical position is below the parent
+        const childY = parentY + verticalSpacing;
 
-        // 子ノードの配置を調整するための角度と半径
-        const totalAngleSpread = Math.PI * 1.5; // For a 270-degree spread
-        const startAngle = parentAngle - totalAngleSpread / 2 + Math.PI;
-        const distance = levelSpacing * level;
-        
+        // Spread children horizontally
         children.forEach((node, index) => {
-            const angle = startAngle + (totalAngleSpread / (numChildren + 1)) * (index + 1);
+            // Calculate an offset based on the number of children
+            const totalWidth = (numChildren - 1) * horizontalSpacing;
+            const startX = parentX - totalWidth / 2;
+            const childX = startX + index * horizontalSpacing;
             
-            const x = parentX + distance * Math.cos(angle);
-            const y = parentY + distance * Math.sin(angle);
+            positions[node.id] = { x: childX, y: childY };
             
-            positions[node.id] = { x, y };
-            positionChildren(node.id, x, y, angle, level + 1);
+            // Recursively position grandchildren
+            positionChildren(node.id, childX, childY, numChildren, index, level + 1);
         });
     }
-    
+
     // Start positioning from the root
-    positionChildren(treeState.rootId, 0, 0, 0, 1);
+    positionChildren(treeState.rootId, 0, 0, 1, 0, 1);
     
     return positions;
 }
@@ -879,7 +870,11 @@ function loadFromLocalStorage() {
                 updateStats();
                 if (Object.keys(treeState.nodes).length > 0) {
                     renderTree();
-                    updateSelectedNodeInfo();
+                    // selectNode()を呼び出すのではなく、ポップアップの状態を直接更新
+                    if (treeState.selectedNodeId) {
+                        updateSelectedNodeInfo();
+                        showPopup();
+                    }
                 }
             }
         }
