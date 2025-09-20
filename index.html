@@ -10,138 +10,150 @@
 <body>
     <div class="app-container">
         <div class="control-panel">
-            <div class="header">
-                <h1>コネフラ</h1>
-                <p>カラーパレット生成ツール</p>
-                <div class="version-badge">v3.0</div>
-            </div>
-
-            <div class="section">
-                <h3>🎨 基本色設定</h3>
-                <div class="color-input-group">
-                    <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
-                    <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
+            <!-- ==================== -->
+            <!-- 上部メニュー (top-controls) -->
+            <!-- ==================== -->
+            <div class="top-controls">
+                <div class="header">
+                    <h1>コネフラ</h1>
+                    <p>カラーパレット生成ツール</p>
+                    <div class="version-badge">v3.0</div>
                 </div>
-                <button class="btn" onclick="setRootColor()">起点色に設定</button>
-            </div>
 
-            <div class="section">
-                <h3>🎯 選択中の色</h3>
-                <div id="selectionHint" class="selection-hint">
-                    色のノードをクリックして選択してください
-                </div>
-                <div id="currentSelectionArea" class="current-selection-area">
-                    <div id="currentSelectionInfo" class="current-selection-info">
-                        <span id="selectedNodeDisplay">root</span>
-                        <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
+                <div class="section">
+                    <h3>🎨 基本色設定</h3>
+                    <div class="color-input-group">
+                        <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
+                        <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
                     </div>
+                    <button class="btn" onclick="setRootColor()">起点色に設定</button>
+                </div>
 
-                    <div class="node-details">
-                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
-                            <span class="detail-label">HEX</span>
-                            <span id="popup-hex"></span>
+                <div class="section">
+                    <h3>🎯 選択中の色</h3>
+                    <div id="selectionHint" class="selection-hint">
+                        色のノードをクリックして選択してください
+                    </div>
+                    <div id="currentSelectionArea" class="current-selection-area">
+                        <div id="currentSelectionInfo" class="current-selection-info">
+                            <span id="selectedNodeDisplay">root</span>
+                            <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
                         </div>
-                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
-                            <span class="detail-label">RGB</span>
-                            <span id="popup-rgb"></span>
+
+                        <div class="node-details">
+                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
+                                <span class="detail-label">HEX</span>
+                                <span id="popup-hex"></span>
+                            </div>
+                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
+                                <span class="detail-label">RGB</span>
+                                <span id="popup-rgb"></span>
+                            </div>
+                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
+                                <span class="detail-label">HSL</span>
+                                <span id="popup-hsl"></span>
+                            </div>
+                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
+                                <span class="detail-label">CSS VAR</span>
+                                <span id="popup-css-var"></span>
+                            </div>
                         </div>
-                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
-                            <span class="detail-label">HSL</span>
-                            <span id="popup-hsl"></span>
+
+                        <div class="state-buttons">
+                            <button class="state-btn adopted" onclick="setNodeState('adopted')">
+                                <span>⭐</span> 採用
+                            </button>
+                            <button class="state-btn pending" onclick="setNodeState('pending')">
+                                <span>⏸️</span> 保留
+                            </button>
+                            <button class="state-btn rejected" onclick="setNodeState('rejected')">
+                                <span>❌</span> 破棄
+                            </button>
                         </div>
-                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
-                            <span class="detail-label">CSS VAR</span>
-                            <span id="popup-css-var"></span>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>🌟 分岐生成</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="generateBranch('analogous')" disabled>近似色</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('complementary')" disabled>補色</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('split')" disabled>分割補色</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('triad')" disabled>トライアド</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('tetrad')" disabled>テトラード</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('tint')" disabled>明色</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('shade')" disabled>暗色</button>
+                        <button class="btn btn-secondary" onclick="generateBranch('tone')" disabled>純色</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>⚙️ 設定</h3>
+                    <div class="slider-group">
+                        <label>最大深度</label>
+                        <div class="slider-container">
+                            <input type="range" id="maxDepth" class="slider" min="2" max="6" value="3">
+                            <span id="maxDepthValue" class="slider-value">3</span>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="state-buttons">
-                        <button class="state-btn adopted" onclick="setNodeState('adopted')">
-                            <span>⭐</span> 採用
-                        </button>
-                        <button class="state-btn pending" onclick="setNodeState('pending')">
-                            <span>⏸️</span> 保留
-                        </button>
-                        <button class="state-btn rejected" onclick="setNodeState('rejected')">
-                            <span>❌</span> 破棄
-                        </button>
+            <!-- ==================== -->
+            <!-- 中央 (ツリーキャンバス) -->
+            <!-- ==================== -->
+            <div class="canvas-area">
+                <div class="canvas-tools">
+                    <button class="canvas-tool-btn" onclick="centerView()" title="中央に配置">📍</button>
+                    <button class="canvas-tool-btn" onclick="fitToView()" title="全体表示">🔍</button>
+                    <button class="canvas-tool-btn" onclick="resetZoom()" title="ズームリセット">🔄</button>
+                </div>
+                <div id="canvasContainer" class="canvas-container">
+                    <svg id="treeSvg" class="tree-svg"></svg>
+                </div>
+            </div>
+
+            <!-- ==================== -->
+            <!-- 下部メニュー (bottom-controls) -->
+            <!-- ==================== -->
+            <div class="bottom-controls">
+                <div class="section">
+                    <h3>📊 統計</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div id="totalNodes" class="stat-number">0</div>
+                            <div class="stat-label">総色数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div id="adoptedNodes" class="stat-number">0</div>
+                            <div class="stat-label">採用済み</div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="section">
-                <h3>🌟 分岐生成</h3>
-                <div class="btn-group">
-                    <button class="btn btn-secondary" onclick="generateBranch('analogous')" disabled>近似色</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('complementary')" disabled>補色</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('split')" disabled>分割補色</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('triad')" disabled>トライアド</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('tetrad')" disabled>テトラード</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('tint')" disabled>明色</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('shade')" disabled>暗色</button>
-                    <button class="btn btn-secondary" onclick="generateBranch('tone')" disabled>純色</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>⚙️ 設定</h3>
-                <div class="slider-group">
-                    <label>最大深度</label>
-                    <div class="slider-container">
-                        <input type="range" id="maxDepth" class="slider" min="2" max="6" value="3">
-                        <span id="maxDepthValue" class="slider-value">3</span>
+                <div class="section">
+                    <h3>📅 履歴</h3>
+                    <div id="colorHistory">
+                        <div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>
                     </div>
                 </div>
-            </div>
 
-            <div class="section">
-                <h3>📊 統計</h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div id="totalNodes" class="stat-number">0</div>
-                        <div class="stat-label">総色数</div>
+                <div class="section">
+                    <h3>💾 データ操作</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="saveToJSON()">保存</button>
+                        <button class="btn btn-secondary" onclick="loadFromJSON()">読込</button>
+                        <button class="btn btn-secondary" onclick="exportPalette()">画像出力</button>
+                        <button class="btn btn-secondary" onclick="exportCSS()">CSS出力</button>
+                        <button class="btn btn-secondary" onclick="clearTree()">クリア</button>
                     </div>
-                    <div class="stat-card">
-                        <div id="adoptedNodes" class="stat-number">0</div>
-                        <div class="stat-label">採用済み</div>
-                    </div>
+                    <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)" style="display: none;">
                 </div>
-            </div>
-
-            <div class="section">
-                <h3>📅 履歴</h3>
-                <div id="colorHistory">
-                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>💾 データ操作</h3>
-                <div class="btn-group">
-                    <button class="btn btn-secondary" onclick="saveToJSON()">保存</button>
-                    <button class="btn btn-secondary" onclick="loadFromJSON()">読込</button>
-                    <button class="btn btn-secondary" onclick="exportPalette()">画像出力</button>
-                    <button class="btn btn-secondary" onclick="exportCSS()">CSS出力</button>
-                    <button class="btn btn-secondary" onclick="clearTree()">クリア</button>
-                </div>
-                <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)" style="display: none;">
-            </div>
-        </div>
-
-        <div class="canvas-area">
-            <div class="canvas-tools">
-                <button class="canvas-tool-btn" onclick="centerView()" title="中央に配置">📍</button>
-                <button class="canvas-tool-btn" onclick="fitToView()" title="全体表示">🔍</button>
-                <button class="canvas-tool-btn" onclick="resetZoom()" title="ズームリセット">🔄</button>
-            </div>
-            <div id="canvasContainer" class="canvas-container">
-                <svg id="treeSvg" class="tree-svg"></svg>
             </div>
         </div>
     </div>
 
     <div id="notification" class="notification"></div>
-    
     <script src="script.js"></script>
 </body>
 </html>
