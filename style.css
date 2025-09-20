@@ -7,9 +7,11 @@
     --text-muted: #888;
     --accent-color: #4ecdc4;
     --accent-hover: #67e8df;
+    --color-adopted: #4ecdc4;
+    --color-pending: #f1c40f;
+    --color-rejected: #e74c3c;
 }
 
-/* 全体設定 */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -26,18 +28,48 @@ html, body {
 
 body {
     display: grid;
-    /* 3カラムから2カラムに変更 */
     grid-template-columns: 320px 1fr;
 }
 
-/* アプリケーション全体コンテナ */
+/* モバイル対応 */
+@media (max-width: 768px) {
+    body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+    
+    .control-panel {
+        height: auto;
+        max-height: 40vh;
+        overflow-y: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .canvas-area {
+        height: 60vh;
+    }
+    
+    .header h1 {
+        font-size: 1.4rem;
+    }
+    
+    .section {
+        padding: 16px 0;
+    }
+    
+    .btn-group .btn {
+        font-size: 0.8rem;
+        padding: 8px;
+    }
+}
+
 .app-container {
     height: 100%;
     display: grid;
     grid-template-columns: inherit;
 }
 
-/* コントロールパネル (左側) */
 .control-panel {
     background-color: var(--bg-dark);
     padding: 24px;
@@ -175,7 +207,15 @@ body {
     padding: 8px 0;
 }
 
-.current-selection {
+.current-selection-area {
+    display: none;
+}
+
+.current-selection-area.show {
+    display: block;
+}
+
+.current-selection-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -186,10 +226,63 @@ body {
     margin: 12px 0;
 }
 
-.current-selection .hex-code {
+.current-selection-info .hex-code {
     font-family: monospace;
     font-weight: bold;
 }
+
+.node-details {
+    display: grid;
+    gap: 8px;
+    font-size: 0.9rem;
+    margin-top: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.detail-row:hover {
+    background-color: var(--bg-hover);
+}
+
+.detail-label {
+    color: var(--text-muted);
+}
+
+.state-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.state-btn {
+    flex-grow: 1;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    font-weight: 500;
+}
+
+.state-btn.adopted { color: var(--color-adopted); border-color: var(--color-adopted); }
+.state-btn.pending { color: var(--color-pending); border-color: var(--color-pending); }
+.state-btn.rejected { color: var(--color-rejected); border-color: var(--color-rejected); }
+
+.state-btn.adopted.active { background-color: var(--color-adopted); color: black; }
+.state-btn.pending.active { background-color: var(--color-pending); color: black; }
+.state-btn.rejected.active { background-color: var(--color-rejected); color: white; }
+
+.state-btn:hover:not(.active) { background-color: var(--bg-hover); }
 
 .stats-grid {
     display: grid;
@@ -288,7 +381,6 @@ body {
     text-align: right;
 }
 
-/* メインキャンバスエリア (中央) */
 .canvas-area {
     position: relative;
     background-color: var(--bg-primary);
@@ -309,15 +401,30 @@ body {
 
 .canvas-tools {
     position: absolute;
-    top: 24px;
-    right: 24px;
+    top: 16px;
+    right: 16px;
     z-index: 10;
     display: flex;
-    gap: 8px;
-    background-color: rgba(10, 10, 10, 0.5);
+    gap: 6px;
+    background-color: rgba(10, 10, 10, 0.8);
     backdrop-filter: blur(5px);
     border-radius: 8px;
-    padding: 8px;
+    padding: 6px;
+}
+
+@media (max-width: 480px) {
+    .canvas-tools {
+        top: 8px;
+        right: 8px;
+        gap: 4px;
+        padding: 4px;
+    }
+    
+    .canvas-tool-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
 }
 
 .canvas-tool-btn {
@@ -353,25 +460,24 @@ body {
     transition: transform 0.2s ease-out;
 }
 
-/* ノードの状態 */
 .node-circle.adopted {
-    stroke: var(--accent-color);
+    stroke: var(--color-adopted);
     stroke-width: 3px;
     filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
 }
 
 .node-circle.pending {
-    stroke: var(--text-muted);
+    stroke: var(--color-pending);
     stroke-width: 1px;
 }
 
 .node-circle.rejected {
-    stroke: #e74c3c;
+    stroke: var(--color-rejected);
     stroke-width: 2px;
 }
 
 .color-node.selected .node-circle {
-    stroke: #4ecdc4;
+    stroke: var(--accent-color);
     stroke-width: 4px;
 }
 
@@ -383,122 +489,6 @@ body {
     pointer-events: none;
 }
 
-/* ポップアップのスタイル (新規追加) */
-.node-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    width: 300px;
-    max-width: 90vw;
-    animation: fadeInScale 0.2s ease-out;
-}
-
-.popup-content {
-    padding: 24px;
-}
-
-.popup-close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 24px;
-    cursor: pointer;
-}
-
-.popup-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.popup-header .color-preview {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    margin-right: 12px;
-    border: 1px solid var(--border-color);
-}
-
-.popup-header .hex-code {
-    font-size: 1.2rem;
-    font-weight: bold;
-}
-
-.color-format {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 12px;
-    background-color: var(--bg-primary);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.color-format:hover {
-    background-color: var(--bg-hover);
-}
-
-.state-buttons {
-    display: flex;
-    gap: 12px;
-    margin: 20px 0;
-}
-
-.state-btn {
-    flex-grow: 1;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    padding: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-    font-weight: 500;
-}
-
-.state-btn.adopt { color: #4ecdc4; border-color: #4ecdc4; }
-.state-btn.pending { color: #f1c40f; border-color: #f1c40f; }
-.state-btn.reject { color: #e74c3c; border-color: #e74c3c; }
-
-.state-btn.adopt.active { background-color: #4ecdc4; color: black; }
-.state-btn.pending.active { background-color: #f1c40f; color: black; }
-.state-btn.reject.active { background-color: #e74c3c; color: white; }
-
-.state-btn:hover { background-color: var(--bg-hover); }
-
-.node-info .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.node-info .info-row:last-of-type {
-    border-bottom: none;
-}
-
-.info-label {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-.info-value {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-/* 通知バー */
 .notification {
     position: fixed;
     bottom: -100px;
@@ -520,27 +510,21 @@ body {
 }
 
 .notification.success {
-    background-color: #4ecdc4;
+    background-color: var(--accent-color);
     color: black;
 }
 
 .notification.warning {
-    background-color: #f1c40f;
+    background-color: var(--color-pending);
     color: black;
 }
 
 .notification.error {
-    background-color: #e74c3c;
+    background-color: var(--color-rejected);
     color: white;
 }
 
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
+.notification.info {
+    background-color: #3498db;
+    color: white;
 }
