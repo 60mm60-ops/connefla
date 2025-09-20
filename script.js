@@ -1,1039 +1,530 @@
-// Data Model & History
-let treeState = {
-    version: 3,
-    rootId: null,
-    nodes: {},
-    edges: [],
-    maxDepth: 3,
-    viewport: { x: 0, y: 0, scale: 1 },
-    selectedNodeId: null,
-    history: [],
-    createdAt: Date.now()
-};
-
-let isDragging = false;
-let dragStart = { x: 0, y: 0 };
-let viewportStart = { x: 0, y: 0 };
-
-// Color Conversion Functions
-function hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-    } : null;
+:root {
+    --bg-primary: #121212;
+    --bg-dark: #0a0a0a;
+    --bg-hover: #1f1f1f;
+    --border-color: #333;
+    --text-primary: #e0e0e0;
+    --text-muted: #888;
+    --accent-color: #4ecdc4;
+    --accent-hover: #67e8df;
+    --color-adopted: #4ecdc4;
+    --color-pending: #f1c40f;
+    --color-rejected: #e74c3c;
 }
 
-function rgbToHex(r, g, b) {
-    const toHex = (c) => {
-        const hex = Math.round(c).toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-    };
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h, s, l = (max + min) / 2;
-
-    if (max === min) {
-        h = s = 0;
-    } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-        }
-        h /= 6;
-    }
-
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+html, body {
+    height: 100%;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    overflow: hidden;
 }
 
-function hslToRgb(h, s, l) {
-    h /= 360; s /= 100; l /= 100;
-    const a = s * Math.min(l, 1 - l);
-    const f = n => {
-        const k = (n + h * 12) % 12;
-        return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    };
-    return {
-        r: Math.round(f(0) * 255),
-        g: Math.round(f(8) * 255),
-        b: Math.round(f(4) * 255)
-    };
+body {
+    display: grid;
+    grid-template-columns: 320px 1fr;
 }
 
-// Color Generation Functions with improved algorithms
-function deriveAnalogous(baseNode, delta = 30) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let offset of [-delta, delta]) {
-        const newH = (hsl.h + offset + 360) % 360;
-        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        
-        results.push(createColorNode(newHex, baseNode.id, 'analogous', { delta: offset }));
+/* モバイル対応 */
+@media (max-width: 768px) {
+    body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
     }
     
-    return results;
-}
-
-function deriveComplementary(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const newH = (hsl.h + 180) % 360;
-    const newRgb = hslToRgb(newH, hsl.s, hsl.l);
-    const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-    
-    return [createColorNode(newHex, baseNode.id, 'complementary', {})];
-}
-
-function deriveSplitComplementary(baseNode, delta = 30) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let offset of [180 - delta, 180 + delta]) {
-        const newH = (hsl.h + offset + 360) % 360;
-        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        
-        results.push(createColorNode(newHex, baseNode.id, 'split', { offset }));
+    .control-panel {
+        height: auto;
+        max-height: 40vh;
+        overflow-y: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
     }
     
-    return results;
-}
-
-function deriveTriad(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let offset of [120, 240]) {
-        const newH = (hsl.h + offset) % 360;
-        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        
-        results.push(createColorNode(newHex, baseNode.id, 'triad', { offset }));
+    .canvas-area {
+        height: 60vh;
     }
     
-    return results;
-}
-
-function deriveTetrad(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let offset of [90, 180, 270]) {
-        const newH = (hsl.h + offset) % 360;
-        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        
-        results.push(createColorNode(newHex, baseNode.id, 'tetrad', { offset }));
+    .header h1 {
+        font-size: 1.4rem;
     }
     
-    return results;
-}
-
-function deriveTint(baseNode, step = 0.15) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let i = 1; i <= 3; i++) {
-        const newL = Math.min(95, hsl.l + (step * 100 * i));
-        const newRgb = hslToRgb(hsl.h, Math.max(10, hsl.s - 5 * i), newL);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        results.push(createColorNode(newHex, baseNode.id, 'tint', { step: i }));
+    .section {
+        padding: 16px 0;
     }
     
-    return results;
-}
-
-function deriveShade(baseNode, step = 0.15) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let i = 1; i <= 3; i++) {
-        const newL = Math.max(5, hsl.l - (step * 100 * i));
-        const newRgb = hslToRgb(hsl.h, Math.min(100, hsl.s + 3 * i), newL);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        results.push(createColorNode(newHex, baseNode.id, 'shade', { step: i }));
-    }
-    
-    return results;
-}
-
-function deriveTone(baseNode, step = 0.2) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
-    const results = [];
-    
-    for (let i = 1; i <= 3; i++) {
-        const newS = Math.max(5, hsl.s - (step * 100 * i));
-        const newRgb = hslToRgb(hsl.h, newS, hsl.l);
-        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-        results.push(createColorNode(newHex, baseNode.id, 'tone', { step: i }));
-    }
-    
-    return results;
-}
-
-// Node Management
-function createColorNode(hex, parentId = null, rule = 'root', params = {}) {
-    const id = 'n' + Date.now() + Math.random().toString(36).substr(2, 9);
-    const rgb = hexToRgb(hex);
-    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    const parentNode = parentId ? treeState.nodes[parentId] : null;
-    const depth = parentNode ? parentNode.depth + 1 : 0;
-    
-    return {
-        id,
-        parentId,
-        hex: hex.toUpperCase(),
-        rgb,
-        hsl,
-        derivation: { rule, params },
-        state: 'pending',
-        depth,
-        createdAt: Date.now()
-    };
-}
-
-function addNode(node) {
-    treeState.nodes[node.id] = node;
-    if (node.parentId) {
-        treeState.edges.push({ from: node.parentId, to: node.id });
-    }
-    
-    // Add to history
-    addToHistory(node.hex, node.derivation.rule);
-    updateStats();
-}
-
-function addToHistory(hex, rule) {
-    const historyItem = {
-        hex: hex.toUpperCase(),
-        rule,
-        timestamp: Date.now()
-    };
-    
-    treeState.history.unshift(historyItem);
-    
-    // Keep only last 20 items
-    if (treeState.history.length > 20) {
-        treeState.history = treeState.history.slice(0, 20);
-    }
-    
-    updateHistoryUI();
-    saveToLocalStorage();
-}
-
-function updateHistoryUI() {
-    const historyContainer = document.getElementById('colorHistory');
-    
-    if (treeState.history.length === 0) {
-        historyContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>';
-        return;
-    }
-    
-    historyContainer.innerHTML = treeState.history.slice(0, 10).map(item => `
-        <div class="history-item" onclick="applyHistoryColor('${item.hex}')">
-            <div class="history-color" style="background-color: ${item.hex}"></div>
-            <div class="history-info">
-                <div class="history-hex">${item.hex}</div>
-                <div class="history-time">${formatTime(item.timestamp)} - ${item.rule}</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function applyHistoryColor(hex) {
-    document.getElementById('hexInput').value = hex;
-    document.getElementById('colorPicker').value = hex;
-    setRootColor();
-}
-
-function formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString('ja-JP', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-}
-
-function updateStats() {
-    const totalNodes = Object.keys(treeState.nodes).length;
-    const adoptedNodes = Object.values(treeState.nodes).filter(n => n.state === 'adopted').length;
-    
-    document.getElementById('totalNodes').textContent = totalNodes;
-    document.getElementById('adoptedNodes').textContent = adoptedNodes;
-}
-
-// UI Functions
-function setRootColor() {
-    const hex = document.getElementById('hexInput').value;
-    if (!/^#?[0-9A-F]{6}$/i.test(hex)) {
-        showNotification('無効なHEX形式です', 'error');
-        return;
-    }
-    
-    const normalizedHex = hex.startsWith('#') ? hex : '#' + hex;
-    
-    treeState.nodes = {};
-    treeState.edges = [];
-    treeState.selectedNodeId = null;
-    
-    const rootNode = createColorNode(normalizedHex);
-    rootNode.state = 'adopted';
-    addNode(rootNode);
-    treeState.rootId = rootNode.id;
-
-    centerView();
-    renderTree();
-    selectNode(rootNode.id);
-    showNotification('起点色を設定しました', 'success');
-}
-
-function generateBranch(type) {
-    let selectedId = treeState.selectedNodeId;
-    
-    if (!selectedId) {
-        showNotification('色のノードを選択してから分岐を生成してください', 'warning');
-        return;
-    }
-    
-    const baseNode = treeState.nodes[selectedId];
-    if (baseNode.depth >= treeState.maxDepth) {
-        showNotification(`最大深度${treeState.maxDepth}に達しています`, 'warning');
-        return;
-    }
-    
-    let newNodes = [];
-    switch (type) {
-        case 'analogous': newNodes = deriveAnalogous(baseNode); break;
-        case 'complementary': newNodes = deriveComplementary(baseNode); break;
-        case 'split': newNodes = deriveSplitComplementary(baseNode); break;
-        case 'triad': newNodes = deriveTriad(baseNode); break;
-        case 'tetrad': newNodes = deriveTetrad(baseNode); break;
-        case 'tint': newNodes = deriveTint(baseNode); break;
-        case 'shade': newNodes = deriveShade(baseNode); break;
-        case 'tone': newNodes = deriveTone(baseNode); break;
-    }
-    
-    newNodes.forEach(addNode);
-    renderTree();
-    
-    const typeNames = {
-        analogous: '近似色',
-        complementary: '補色',
-        split: '分割補色',
-        triad: 'トライアド',
-        tetrad: 'テトラード',
-        tint: '明色',
-        shade: '暗色',
-        tone: '純色'
-    };
-    
-    showNotification(`${baseNode.hex}から${typeNames[type]}を生成しました`, 'success');
-}
-
-function setNodeState(state) {
-    if (!treeState.selectedNodeId) return;
-    
-    treeState.nodes[treeState.selectedNodeId].state = state;
-    renderTree();
-    updateSelectedNodeInfo();
-    updateStats();
-    saveToLocalStorage();
-    
-    const stateNames = {
-        adopted: '採用',
-        pending: '保留',
-        rejected: '破棄'
-    };
-    
-    showNotification(`色を${stateNames[state]}しました`, 'info');
-}
-
-function selectNode(nodeId) {
-    treeState.selectedNodeId = nodeId;
-    
-    document.querySelectorAll('.color-node').forEach(node => {
-        node.classList.remove('selected');
-    });
-    
-    const selectedElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-    if (selectedElement) {
-        selectedElement.classList.add('selected');
-    }
-    
-    updateSelectedNodeInfo();
-    showPopup();
-}
-
-function closePopup() {
-    document.getElementById('node-popup').style.display = 'none';
-    document.querySelectorAll('.color-node').forEach(node => {
-        node.classList.remove('selected');
-    });
-    treeState.selectedNodeId = null;
-}
-
-function showPopup() {
-    document.getElementById('node-popup').style.display = 'block';
-}
-
-function updateSelectedNodeInfo() {
-    const nodeId = treeState.selectedNodeId;
-    
-    if (!nodeId || !treeState.nodes[nodeId]) {
-        closePopup();
-        return;
-    }
-    
-    const node = treeState.nodes[nodeId];
-
-    document.getElementById('popup-color-preview').style.backgroundColor = node.hex;
-    document.getElementById('popup-hex-code').textContent = node.hex;
-    document.getElementById('popup-hex').textContent = node.hex;
-    document.getElementById('popup-rgb').textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
-    document.getElementById('popup-hsl').textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
-    document.getElementById('popup-css-var').textContent = `--color-${node.derivation.rule}: ${node.hex}`;
-    document.getElementById('popup-rule').textContent = node.derivation.rule;
-    document.getElementById('popup-depth').textContent = node.depth;
-    document.getElementById('popup-time').textContent = formatTime(node.createdAt);
-    
-    document.querySelector('#popup-hex').parentElement.dataset.value = node.hex;
-    document.querySelector('#popup-rgb').parentElement.dataset.value = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
-    document.querySelector('#popup-hsl').parentElement.dataset.value = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
-    document.querySelector('#popup-css-var').parentElement.dataset.value = `--color-${node.derivation.rule}: ${node.hex}`;
-
-    document.querySelectorAll('.state-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    const activeBtn = document.querySelector(`.state-btn.${node.state}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-    }
-    
-    const currentSelection = document.getElementById('currentSelection');
-    const selectedNodeDisplay = document.getElementById('selectedNodeDisplay');
-    const selectedNodeHex = document.getElementById('selectedNodeHex');
-    const selectionHint = document.getElementById('selectionHint');
-    const branchButtons = document.querySelectorAll('.btn-group .btn');
-    
-    currentSelection.style.display = 'flex';
-    selectionHint.style.display = 'none';
-    branchButtons.forEach(btn => btn.disabled = false);
-
-    selectedNodeDisplay.textContent = node.derivation.rule;
-    selectedNodeHex.textContent = node.hex;
-}
-
-function renderTree() {
-    const svg = document.getElementById('treeSvg');
-    const container = document.getElementById('canvasContainer');
-    
-    if (!svg || !container) return;
-    
-    svg.innerHTML = '';
-    
-    const positions = calculateNodePositions();
-    
-    // Draw edges first
-    treeState.edges.forEach(edge => {
-        const fromPos = positions[edge.from];
-        const toPos = positions[edge.to];
-        if (fromPos && toPos) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('class', 'connection-line');
-            line.setAttribute('x1', fromPos.x);
-            line.setAttribute('y1', fromPos.y);
-            line.setAttribute('x2', toPos.x);
-            line.setAttribute('y2', toPos.y);
-            svg.appendChild(line);
-        }
-    });
-    
-    // Draw nodes
-    Object.values(treeState.nodes).forEach(node => {
-        const pos = positions[node.id];
-        if (!pos) return;
-        
-        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.setAttribute('class', `color-node ${node.state}`);
-        group.setAttribute('data-node-id', node.id);
-        group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
-        
-        // Outer glow for selected state
-        if (treeState.selectedNodeId === node.id) {
-            const glowCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            glowCircle.setAttribute('r', node.depth === 0 ? 38 : 33);
-            glowCircle.setAttribute('fill', 'none');
-            glowCircle.setAttribute('stroke', '#4ecdc4');
-            glowCircle.setAttribute('stroke-width', '3');
-            glowCircle.setAttribute('opacity', '0.6');
-            group.appendChild(glowCircle);
-        }
-        
-        // Main circle
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('r', node.depth === 0 ? 32 : 28);
-        circle.setAttribute('fill', node.hex);
-        circle.setAttribute('class', `node-circle ${node.state}`);
-        group.appendChild(circle);
-        
-        // HEX label
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('class', 'node-text');
-        text.setAttribute('y', node.depth === 0 ? 46 : 42);
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-weight', 'bold');
-        text.textContent = node.hex;
-        group.appendChild(text);
-        
-        // Rule label
-        if (node.derivation.rule !== 'root') {
-            const ruleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            ruleText.setAttribute('class', 'node-text');
-            ruleText.setAttribute('y', node.depth === 0 ? 60 : 56);
-            ruleText.setAttribute('font-size', '9');
-            ruleText.setAttribute('opacity', '0.8');
-            ruleText.textContent = node.derivation.rule;
-            group.appendChild(ruleText);
-        }
-        
-        // Event listeners
-        group.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectNode(node.id);
-        });
-        
-        group.addEventListener('touchend', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            selectNode(node.id);
-        });
-        
-        svg.appendChild(group);
-    });
-
-    updateViewport();
-}
-
-function calculateNodePositions() {
-    const positions = {};
-    if (!treeState.rootId) return positions;
-
-    const horizontalSpacing = 200;
-    const verticalSpacing = 160;
-
-    const levelNodes = {};
-    Object.values(treeState.nodes).forEach(node => {
-        if (!levelNodes[node.depth]) levelNodes[node.depth] = [];
-        levelNodes[node.depth].push(node);
-    });
-
-    positions[treeState.rootId] = { x: 0, y: 0 };
-    
-    function positionChildren(parentId, parentX, parentY, level) {
-        const children = Object.values(treeState.nodes).filter(node => node.parentId === parentId);
-        const numChildren = children.length;
-        
-        if (numChildren === 0) return;
-
-        const childY = parentY + verticalSpacing;
-        const totalWidth = (numChildren - 1) * horizontalSpacing;
-        const startX = parentX - totalWidth / 2;
-        
-        children.forEach((node, index) => {
-            const childX = startX + index * horizontalSpacing;
-            positions[node.id] = { x: childX, y: childY };
-            positionChildren(node.id, childX, childY, level + 1);
-        });
-    }
-
-    positionChildren(treeState.rootId, 0, 0, 1);
-    
-    return positions;
-}
-
-
-// Canvas Controls
-function centerView() {
-    const container = document.getElementById('canvasContainer');
-    const rect = container.getBoundingClientRect();
-    treeState.viewport.x = rect.width / 2;
-    treeState.viewport.y = rect.height / 2;
-    treeState.viewport.scale = 1;
-    updateViewport();
-}
-
-function fitToView() {
-    if (Object.keys(treeState.nodes).length === 0) return;
-    
-    const container = document.getElementById('canvasContainer');
-    const rect = container.getBoundingClientRect();
-    const positions = calculateNodePositions();
-    const coords = Object.values(positions);
-    
-    if (coords.length === 0) return;
-    
-    const minX = Math.min(...coords.map(p => p.x)) - 60;
-    const maxX = Math.max(...coords.map(p => p.x)) + 60;
-    const minY = Math.min(...coords.map(p => p.y)) - 60;
-    const maxY = Math.max(...coords.map(p => p.y)) + 60;
-    
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    
-    const scaleX = rect.width / contentWidth;
-    const scaleY = rect.height / contentHeight;
-    const scale = Math.min(scaleX, scaleY, 1);
-    
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    
-    treeState.viewport.x = rect.width / 2 - centerX * scale;
-    treeState.viewport.y = rect.height / 2 - centerY * scale;
-    treeState.viewport.scale = scale;
-    
-    updateViewport();
-}
-
-function resetZoom() {
-    treeState.viewport.scale = 1;
-    updateViewport();
-}
-
-function updateViewport() {
-    const svg = document.getElementById('treeSvg');
-    if (svg) {
-        svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`;
+    .btn-group .btn {
+        font-size: 0.8rem;
+        padding: 8px;
     }
 }
 
-// Data Management
-function clearTree() {
-    if (Object.keys(treeState.nodes).length === 0) {
-        showNotification('クリアする内容がありません', 'info');
-        return;
+.app-container {
+    height: 100%;
+    display: grid;
+    grid-template-columns: inherit;
+}
+
+.control-panel {
+    background-color: var(--bg-dark);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-color);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.header p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.version-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 99px;
+}
+
+.section {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 24px;
+}
+
+.section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.color-picker {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.hex-input {
+    flex-grow: 1;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 1rem;
+}
+
+.btn {
+    width: 100%;
+    background-color: var(--accent-color);
+    color: #0a0a0a;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.btn:disabled {
+    background-color: var(--border-color);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #444;
+}
+
+.btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.btn-group .btn {
+    flex-grow: 1;
+    flex-basis: calc(50% - 4px);
+    font-size: 0.9rem;
+    padding: 10px;
+}
+
+.selection-hint {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px 0;
+}
+
+.current-selection-area {
+    display: none;
+}
+
+.current-selection-area.show {
+    display: block;
+}
+
+.current-selection-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    padding: 12px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+.current-selection-info .hex-code {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.node-details {
+    display: grid;
+    gap: 8px;
+    font-size: 0.9rem;
+    margin-top: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.detail-row:hover {
+    background-color: var(--bg-hover);
+}
+
+.detail-label {
+    color: var(--text-muted);
+}
+
+.state-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.state-btn {
+    flex-grow: 1;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    font-weight: 500;
+}
+
+.state-btn.adopted { color: var(--color-adopted); border-color: var(--color-adopted); }
+.state-btn.pending { color: var(--color-pending); border-color: var(--color-pending); }
+.state-btn.rejected { color: var(--color-rejected); border-color: var(--color-rejected); }
+
+.state-btn.adopted.active { background-color: var(--color-adopted); color: black; }
+.state-btn.pending.active { background-color: var(--color-pending); color: black; }
+.state-btn.rejected.active { background-color: var(--color-rejected); color: white; }
+
+.state-btn:hover:not(.active) { background-color: var(--bg-hover); }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.stat-card {
+    background-color: var(--bg-primary);
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.history-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.history-color {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.history-info {
+    flex-grow: 1;
+}
+
+.history-hex {
+    font-size: 0.9rem;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.history-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.slider-group {
+    margin-bottom: 12px;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.slider {
+    flex-grow: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--border-color);
+    outline: none;
+    border-radius: 2px;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.slider-value {
+    font-weight: bold;
+    width: 20px;
+    text-align: right;
+}
+
+.canvas-area {
+    position: relative;
+    background-color: var(--bg-primary);
+    height: 100%;
+}
+
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    cursor: grab;
+    position: relative;
+}
+
+.canvas-container.dragging {
+    cursor: grabbing;
+}
+
+.canvas-tools {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+    background-color: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+    padding: 6px;
+}
+
+@media (max-width: 480px) {
+    .canvas-tools {
+        top: 8px;
+        right: 8px;
+        gap: 4px;
+        padding: 4px;
     }
     
-    if (confirm('全ての色データを削除しますか？この操作は元に戻せません。')) {
-        treeState.nodes = {};
-        treeState.edges = [];
-        treeState.rootId = null;
-        treeState.selectedNodeId = null;
-        renderTree();
-        updateSelectedNodeInfo();
-        updateStats();
-        saveToLocalStorage();
-        showNotification('全てのデータをクリアしました', 'success');
+    .canvas-tool-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
     }
 }
 
-function saveToJSON() {
-    const dataStr = JSON.stringify(treeState, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `conectfla-${timestamp}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    URL.revokeObjectURL(url);
-    showNotification('JSONファイルを保存しました', 'success');
+.canvas-tool-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1.2rem;
 }
 
-function loadFromJSON() {
-    document.getElementById('fileInput').click();
+.canvas-tool-btn:hover {
+    background-color: var(--border-color);
 }
 
-function handleFileLoad(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (data.version < 2) {
-                showNotification('古いバージョンのファイルです。正常に読み込まれない可能性があります。', 'warning');
-            }
-            
-            treeState = { ...treeState, ...data };
-            if (!treeState.history) treeState.history = [];
-            
-            renderTree();
-            updateSelectedNodeInfo();
-            updateHistoryUI();
-            updateStats();
-            centerView();
-            showNotification('JSONファイルを読み込みました', 'success');
-        } catch (error) {
-            showNotification('ファイルの読み込みに失敗しました', 'error');
-            console.error('File load error:', error);
-        }
-    };
-    reader.readAsText(file);
+.tree-svg {
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    transition: transform 0.2s ease-out;
 }
 
-function exportPalette() {
-    const adoptedNodes = Object.values(treeState.nodes).filter(node => node.state === 'adopted');
-    const allNodes = Object.values(treeState.nodes).sort((a,b) => a.depth - b.depth);
-    const nodesToExport = adoptedNodes.length > 0 ? adoptedNodes : allNodes;
-
-    if (nodesToExport.length === 0) {
-        showNotification('エクスポートする色がありません', 'warning');
-        return;
-    }
-    
-    generatePaletteImage(nodesToExport, 'conectfla-palette');
+.connection-line {
+    stroke: var(--border-color);
+    stroke-width: 2px;
 }
 
-function exportAdoptedColors() {
-    const adoptedNodes = Object.values(treeState.nodes).filter(node => node.state === 'adopted');
-    if (adoptedNodes.length === 0) {
-        showNotification('採用された色がありません', 'warning');
-        return;
-    }
-    generatePaletteImage(adoptedNodes, 'conectfla-adopted');
+.color-node {
+    cursor: pointer;
+    transition: transform 0.2s ease-out;
 }
 
-function exportCSS() {
-    const adoptedNodes = Object.values(treeState.nodes).filter(node => node.state === 'adopted');
-    if (adoptedNodes.length === 0) {
-        showNotification('採用された色がありません', 'warning');
-        return;
-    }
-    
-    const cssVars = adoptedNodes.map(node => 
-        `  --color-${node.derivation.rule}${node.id.slice(-3)}: ${node.hex};`
-    ).join('\n');
-    
-    const cssContent = `:root {\n${cssVars}\n}`;
-    
-    const blob = new Blob([cssContent], { type: 'text/css' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `conectfla-colors-${Date.now()}.css`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    URL.revokeObjectURL(url);
-    showNotification('CSS変数ファイルを保存しました', 'success');
+.node-circle.adopted {
+    stroke: var(--color-adopted);
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
 }
 
-function generatePaletteImage(nodes, filename) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    const cardWidth = 200;
-    const cardHeight = 140;
-    const padding = 24;
-    const cols = Math.min(nodes.length, Math.ceil(Math.sqrt(nodes.length)));
-    const rows = Math.ceil(nodes.length / cols);
-    const canvasWidth = cols * cardWidth + (cols + 1) * padding;
-    const canvasHeight = rows * cardHeight + (rows + 1) * padding + 100;
-    
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-    gradient.addColorStop(0, '#0a0a0a');
-    gradient.addColorStop(1, '#1f1f1f');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    
-    // Title
-    ctx.fillStyle = '#4ecdc4';
-    ctx.font = 'bold 36px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('コネフラ - カラーパレット', canvasWidth / 2, 60);
-    
-    // Color cards
-    nodes.forEach((node, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
-        const x = col * cardWidth + (col + 1) * padding;
-        const y = row * cardHeight + (row + 1) * padding + 100;
-        
-        // Card background
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x, y, cardWidth, cardHeight);
-        
-        // Color area
-        ctx.fillStyle = node.hex;
-        ctx.fillRect(x + 12, y + 12, cardWidth - 24, cardHeight - 60);
-        
-        // HEX label
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(node.hex, x + cardWidth / 2, y + cardHeight - 30);
-        
-        // Rule label
-        ctx.fillStyle = '#aaaaaa';
-        ctx.font = '12px Inter, sans-serif';
-        ctx.fillText(node.derivation.rule, x + cardWidth / 2, y + cardHeight - 10);
-    });
-    
-    canvas.toBlob(blob => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${filename}-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showNotification('パレット画像を保存しました', 'success');
-    }, 'image/png');
+.node-circle.pending {
+    stroke: var(--color-pending);
+    stroke-width: 1px;
 }
 
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showNotification('クリップボードにコピーしました', 'success');
-    }).catch(err => {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showNotification('クリップボードにコピーしました', 'success');
-    });
+.node-circle.rejected {
+    stroke: var(--color-rejected);
+    stroke-width: 2px;
 }
 
-function showNotification(message, type = 'success') {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 4000);
+.color-node.selected .node-circle {
+    stroke: var(--accent-color);
+    stroke-width: 4px;
 }
 
-// Local Storage
-function saveToLocalStorage() {
-    try {
-        localStorage.setItem('conectfla-state', JSON.stringify(treeState));
-    } catch (error) {
-        console.warn('Failed to save to localStorage:', error);
-    }
+.node-text {
+    fill: var(--text-primary);
+    text-anchor: middle;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
-function loadFromLocalStorage() {
-    try {
-        const saved = localStorage.getItem('conectfla-state');
-        if (saved) {
-            const data = JSON.parse(saved);
-            if (data.version >= 2) {
-                treeState = { ...treeState, ...data };
-                if (!treeState.history) treeState.history = [];
-                updateHistoryUI();
-                updateStats();
-                if (Object.keys(treeState.nodes).length > 0) {
-                    renderTree();
-                    if (treeState.selectedNodeId) {
-                        updateSelectedNodeInfo();
-                        showPopup();
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.warn('Failed to load from localStorage:', error);
-    }
+.notification {
+    position: fixed;
+    bottom: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    transition: bottom 0.3s ease-out;
+    text-align: center;
+    white-space: nowrap;
 }
 
-// Canvas interaction
-function setupCanvasInteraction() {
-    const container = document.getElementById('canvasContainer');
-    const svg = document.getElementById('treeSvg');
-    
-    // Mouse events
-    container.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.color-node')) return;
-        isDragging = true;
-        dragStart = { x: e.clientX, y: e.clientY };
-        viewportStart = { ...treeState.viewport };
-        container.classList.add('dragging');
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        treeState.viewport.x = viewportStart.x + dx;
-        treeState.viewport.y = viewportStart.y + dy;
-        updateViewport();
-    });
-    
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        container.classList.remove('dragging');
-    });
-    
-    // Wheel zoom
-    container.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        const newScale = Math.max(0.1, Math.min(4, treeState.viewport.scale * delta));
-        
-        // Zoom toward mouse position
-        const rect = container.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        const scaleDiff = newScale - treeState.viewport.scale;
-        treeState.viewport.x -= (mouseX - treeState.viewport.x) * scaleDiff / treeState.viewport.scale;
-        treeState.viewport.y -= (mouseY - treeState.viewport.y) * scaleDiff / treeState.viewport.scale;
-        treeState.viewport.scale = newScale;
-        
-        updateViewport();
-    });
-
-    // Touch events
-    let lastTouchDistance = 0;
-    
-    container.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.color-node')) return;
-        
-        if (e.touches.length === 1) {
-            isDragging = true;
-            dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            viewportStart = { ...treeState.viewport };
-            container.classList.add('dragging');
-        } else if (e.touches.length === 2) {
-            isDragging = false;
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            lastTouchDistance = Math.hypot(
-                touch2.clientX - touch1.clientX,
-                touch2.clientY - touch1.clientY
-            );
-        }
-        
-        e.preventDefault();
-    });
-
-    container.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 1 && isDragging) {
-            const dx = e.touches[0].clientX - dragStart.x;
-            const dy = e.touches[0].clientY - dragStart.y;
-            treeState.viewport.x = viewportStart.x + dx;
-            treeState.viewport.y = viewportStart.y + dy;
-            updateViewport();
-        } else if (e.touches.length === 2) {
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            const distance = Math.hypot(
-                touch2.clientX - touch1.clientX,
-                touch2.clientY - touch1.clientY
-            );
-            
-            if (lastTouchDistance > 0) {
-                const scale = distance / lastTouchDistance;
-                treeState.viewport.scale = Math.max(0.1, Math.min(4, treeState.viewport.scale * scale));
-                updateViewport();
-            }
-            
-            lastTouchDistance = distance;
-        }
-        
-        e.preventDefault();
-    });
-
-    container.addEventListener('touchend', () => {
-        isDragging = false;
-        container.classList.remove('dragging');
-        lastTouchDistance = 0;
-    });
+.notification.show {
+    bottom: 24px;
 }
 
-// Event listeners
-document.getElementById('colorPicker').addEventListener('change', (e) => {
-    const hex = e.target.value.toUpperCase();
-    document.getElementById('hexInput').value = hex;
-});
+.notification.success {
+    background-color: var(--accent-color);
+    color: black;
+}
 
-document.getElementById('hexInput').addEventListener('input', (e) => {
-    let hex = e.target.value.toUpperCase();
-    if (hex.length === 6 && !hex.startsWith('#')) {
-        hex = '#' + hex;
-    }
-    if (/^#[0-9A-F]{6}$/i.test(hex)) {
-        document.getElementById('colorPicker').value = hex;
-    }
-});
+.notification.warning {
+    background-color: var(--color-pending);
+    color: black;
+}
 
-document.getElementById('maxDepth').addEventListener('input', (e) => {
-    treeState.maxDepth = parseInt(e.target.value);
-    document.getElementById('maxDepthValue').textContent = e.target.value;
-    saveToLocalStorage();
-});
+.notification.error {
+    background-color: var(--color-rejected);
+    color: white;
+}
 
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-            case 's':
-                e.preventDefault();
-                saveToJSON();
-                break;
-            case 'o':
-                e.preventDefault();
-                loadFromJSON();
-                break;
-        }
-    }
-    
-    if (treeState.selectedNodeId) {
-        switch (e.key) {
-            case '1':
-                setNodeState('adopted');
-                break;
-            case '2':
-                setNodeState('pending');
-                break;
-            case '3':
-                setNodeState('rejected');
-                break;
-        }
-    }
-});
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    setupCanvasInteraction();
-    loadFromLocalStorage();
-    
-    const defaultColor = '#4ECDC4';
-    document.getElementById('hexInput').value = defaultColor;
-    document.getElementById('colorPicker').value = defaultColor;
-    
-    if (Object.keys(treeState.nodes).length === 0) {
-        setRootColor();
-    }
-    
-    centerView();
-    showNotification('コネフラへようこそ！', 'info');
-});
-
-// Auto-save
-setInterval(saveToLocalStorage, 30000); // Save every 30 seconds
+.notification.info {
+    background-color: #3498db;
+    color: white;
+}
