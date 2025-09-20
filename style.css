@@ -23,111 +23,32 @@ html, body {
     font-family: 'Inter', sans-serif;
     color: var(--text-primary);
     background-color: var(--bg-primary);
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 body {
-    display: grid;
-    grid-template-columns: 320px 1fr;
-}
-
-.app-container {
-    height: 100%;
-    display: grid;
-    grid-template-columns: inherit;
-}
-
-/* PC用レイアウト */
-.control-panel {
-    background-color: var(--bg-dark);
-    padding: 24px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    border-right: 1px solid var(--border-color);
+    min-height: 100%;
 }
 
-.canvas-area {
-    position: relative;
-    background-color: var(--bg-primary);
-    height: 100%;
+/* ヘッダー/メイン/フッターの3分割 */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
-.canvas-container {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    cursor: grab;
-    position: relative;
-}
-
-.canvas-container.dragging {
-    cursor: grabbing;
-}
-
-.tree-svg {
-    width: 100%;
-    height: 100%;
-    transform-origin: center center;
-    transition: transform 0.2s ease-out;
-    overflow: visible;
-}
-
-/* モバイル対応 */
-@media (max-width: 768px) {
-    body {
-        display: block;
-        overflow-y: auto;
-    }
-
-    .app-container {
-        display: block;
-    }
-
-    .control-panel {
-        width: 100%;
-        border: none;
-        border-bottom: 1px solid var(--border-color);
-        max-height: none;
-        padding: 16px;
-    }
-
-    .canvas-area {
-        width: 100%;
-        height: auto;        /* ←固定高さやめる */
-        min-height: 400px;   /* 最低限だけ確保 */
-    }
-
-    .canvas-container {
-        width: 100%;
-        height: auto;
-        min-height: 400px;
-        overflow: visible;   /* ←切れないように変更 */
-    }
-
-    .tree-svg {
-        width: 100%;
-        height: auto;
-        overflow: visible;   /* ←切れないように変更 */
-    }
-
-    .header h1 {
-        font-size: 1.4rem;
-    }
-    
-    .section {
-        padding: 16px 0;
-    }
-    
-    .btn-group .btn {
-        font-size: 0.8rem;
-        padding: 8px;
-    }
+/* ===== メニュー（上部） ===== */
+.control-panel {
+    background-color: var(--bg-dark);
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     position: relative;
 }
 
@@ -154,19 +75,19 @@ body {
 }
 
 .section {
-    padding: 24px 0;
+    padding: 16px 0;
     border-bottom: 1px solid var(--border-color);
 }
 
 .section:last-of-type {
     border-bottom: none;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .section h3 {
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -246,6 +167,107 @@ body {
     padding: 10px;
 }
 
+/* ===== ツリー描画部分（中央） ===== */
+.canvas-area {
+    position: relative;
+    background-color: var(--bg-primary);
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8px;
+}
+
+.canvas-container {
+    width: 100%;
+    height: auto;
+    min-height: 400px;
+    overflow: visible !important;
+    position: relative;
+}
+
+.canvas-container.dragging {
+    cursor: grabbing;
+}
+
+.tree-svg {
+    width: 100%;
+    height: auto;
+    overflow: visible !important;
+    transform-origin: center center;
+    transition: transform 0.2s ease-out;
+}
+
+.canvas-tools {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+    background-color: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.canvas-tool-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1.2rem;
+}
+
+.canvas-tool-btn:hover {
+    background-color: var(--border-color);
+}
+
+/* ===== ノード ===== */
+.connection-line {
+    stroke: var(--border-color);
+    stroke-width: 2px;
+}
+
+.color-node {
+    cursor: pointer;
+    transition: transform 0.2s ease-out;
+}
+
+.node-circle.adopted {
+    stroke: var(--color-adopted);
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
+}
+
+.node-circle.pending {
+    stroke: var(--color-pending);
+    stroke-width: 1px;
+}
+
+.node-circle.rejected {
+    stroke: var(--color-rejected);
+    stroke-width: 2px;
+}
+
+.color-node.selected .node-circle {
+    stroke: var(--accent-color);
+    stroke-width: 4px;
+}
+
+.node-text {
+    fill: var(--text-primary);
+    text-anchor: middle;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+}
+
+/* ===== 選択情報 ===== */
 .selection-hint {
     font-size: 0.9rem;
     color: var(--text-muted);
@@ -330,6 +352,7 @@ body {
 
 .state-btn:hover:not(.active) { background-color: var(--bg-hover); }
 
+/* ===== 統計/履歴（下部フッター） ===== */
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -427,89 +450,7 @@ body {
     text-align: right;
 }
 
-.canvas-tools {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 10;
-    display: flex;
-    gap: 6px;
-    background-color: rgba(10, 10, 10, 0.8);
-    backdrop-filter: blur(5px);
-    border-radius: 8px;
-    padding: 6px;
-}
-
-@media (max-width: 480px) {
-    .canvas-tools {
-        top: 8px;
-        right: 8px;
-        gap: 4px;
-        padding: 4px;
-    }
-    
-    .canvas-tool-btn {
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
-    }
-}
-
-.canvas-tool-btn {
-    background-color: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    font-size: 1.2rem;
-}
-
-.canvas-tool-btn:hover {
-    background-color: var(--border-color);
-}
-
-.connection-line {
-    stroke: var(--border-color);
-    stroke-width: 2px;
-}
-
-.color-node {
-    cursor: pointer;
-    transition: transform 0.2s ease-out;
-}
-
-.node-circle.adopted {
-    stroke: var(--color-adopted);
-    stroke-width: 3px;
-    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
-}
-
-.node-circle.pending {
-    stroke: var(--color-pending);
-    stroke-width: 1px;
-}
-
-.node-circle.rejected {
-    stroke: var(--color-rejected);
-    stroke-width: 2px;
-}
-
-.color-node.selected .node-circle {
-    stroke: var(--accent-color);
-    stroke-width: 4px;
-}
-
-.node-text {
-    fill: var(--text-primary);
-    text-anchor: middle;
-    user-select: none;
-    -webkit-user-select: none;
-    pointer-events: none;
-}
-
+/* ===== 通知 ===== */
 .notification {
     position: fixed;
     bottom: -100px;
