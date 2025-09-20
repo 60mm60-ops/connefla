@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -16,67 +17,71 @@
       <div class="version-badge">v4.2</div>
     </div>
 
-    <div class="section">
-      <h3>🎨 基本色設定</h3>
-      <div class="color-input-group">
-        <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
-        <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
-      </div>
-      <button class="btn" onclick="setRootColor()">起点色に設定</button>
-    </div>
+```
+<div class="section">
+  <h3>🎨 基本色設定</h3>
+  <div class="color-input-group">
+    <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
+    <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
+  </div>
+  <button class="btn" onclick="setRootColor()">起点色に設定</button>
+</div>
 
-    <div class="section">
-      <h3>🎯 選択中の色</h3>
-      <div id="selectionHint" class="selection-hint">
-        色のノードをクリックして選択してください
+<div class="section">
+  <h3>🎯 選択中の色</h3>
+  <div id="selectionHint" class="selection-hint">
+    色のノードをクリックして選択してください
+  </div>
+  <div id="currentSelectionArea" class="current-selection-area">
+    <div id="currentSelectionInfo" class="current-selection-info">
+      <span id="selectedNodeDisplay">root</span>
+      <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
+    </div>
+    <div class="node-details">
+      <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
+        <span class="detail-label">HEX</span>
+        <span id="popup-hex"></span>
       </div>
-      <div id="currentSelectionArea" class="current-selection-area">
-        <div id="currentSelectionInfo" class="current-selection-info">
-          <span id="selectedNodeDisplay">root</span>
-          <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
-        </div>
-        <div class="node-details">
-          <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
-            <span class="detail-label">HEX</span>
-            <span id="popup-hex"></span>
-          </div>
-          <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
-            <span class="detail-label">RGB</span>
-            <span id="popup-rgb"></span>
-          </div>
-          <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
-            <span class="detail-label">HSL</span>
-            <span id="popup-hsl"></span>
-          </div>
-          <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
-            <span class="detail-label">CSS VAR</span>
-            <span id="popup-css-var"></span>
-          </div>
-        </div>
-        <div class="state-buttons">
-          <button class="state-btn adopted" onclick="setNodeState('adopted')"><span>⭐</span> 採用</button>
-          <button class="state-btn pending" onclick="setNodeState('pending')"><span>⏸️</span> 保留</button>
-          <button class="state-btn rejected" onclick="setNodeState('rejected')"><span>❌</span> 破棄</button>
-        </div>
+      <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
+        <span class="detail-label">RGB</span>
+        <span id="popup-rgb"></span>
+      </div>
+      <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
+        <span class="detail-label">HSL</span>
+        <span id="popup-hsl"></span>
+      </div>
+      <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
+        <span class="detail-label">CSS VAR</span>
+        <span id="popup-css-var"></span>
       </div>
     </div>
+    <div class="state-buttons">
+      <button class="state-btn adopted" onclick="setNodeState('adopted')"><span>⭐</span> 採用</button>
+      <button class="state-btn pending" onclick="setNodeState('pending')"><span>⏸️</span> 保留</button>
+      <button class="state-btn rejected" onclick="setNodeState('rejected')"><span>❌</span> 破棄</button>
+    </div>
+  </div>
+</div>
 
-    <div class="section">
-      <h3>🌟 分岐生成</h3>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="generateBranch('analogous')" disabled>近似色</button>
-        <button class="btn btn-secondary" onclick="generateBranch('complementary')" disabled>補色</button>
-        <button class="btn btn-secondary" onclick="generateBranch('split')" disabled>分割補色</button>
-        <button class="btn btn-secondary" onclick="generateBranch('triad')" disabled>トライアド</button>
-        <button class="btn btn-secondary" onclick="generateBranch('tetrad')" disabled>テトラード</button>
-        <button class="btn btn-secondary" onclick="generateBranch('tint')" disabled>明色</button>
-        <button class="btn btn-secondary" onclick="generateBranch('shade')" disabled>暗色</button>
-        <button class="btn btn-secondary" onclick="generateBranch('tone')" disabled>純色</button>
-      </div>
-    </div>
+<div class="section">
+  <h3>🌟 分岐生成</h3>
+  <div class="btn-group">
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('analogous')" disabled>近似色</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('complementary')" disabled>補色</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('split')" disabled>分割補色</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('triad')" disabled>トライアド</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('tetrad')" disabled>テトラード</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('tint')" disabled>明色</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('shade')" disabled>暗色</button>
+    <button class="btn btn-secondary btn-branch" onclick="generateBranch('tone')" disabled>純色</button>
+  </div>
+</div>
+```
+
   </div>
 
   <!-- ツリーエリア -->
+
   <div class="tree-panel">
     <div class="canvas-container" id="canvasContainer">
       <svg id="treeSvg" class="tree-svg"></svg>
@@ -84,6 +89,7 @@
   </div>
 
   <!-- 下メニュー -->
+
   <div class="bottom-menu">
     <div class="section">
       <h3>⚙️ 設定</h3>
@@ -96,41 +102,47 @@
       </div>
     </div>
 
-    <div class="section">
-      <h3>📊 統計</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div id="totalNodes" class="stat-number">0</div>
-          <div class="stat-label">総色数</div>
-        </div>
-        <div class="stat-card">
-          <div id="adoptedNodes" class="stat-number">0</div>
-          <div class="stat-label">採用済み</div>
-        </div>
-      </div>
+```
+<div class="section">
+  <h3>📊 統計</h3>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div id="totalNodes" class="stat-number">0</div>
+      <div class="stat-label">総色数</div>
     </div>
+    <div class="stat-card">
+      <div id="adoptedNodes" class="stat-number">0</div>
+      <div class="stat-label">採用済み</div>
+    </div>
+  </div>
+</div>
 
-    <div class="section">
-      <h3>📅 履歴</h3>
-      <div id="colorHistory">
-        <div style="text-align:center; color:var(--text-muted); padding:20px;">履歴がありません</div>
-      </div>
-    </div>
+<div class="section">
+  <h3>📅 履歴</h3>
+  <div id="colorHistory">
+    <div style="text-align:center; color:var(--text-muted); padding:20px;">履歴がありません</div>
+  </div>
+</div>
 
-    <div class="section">
-      <h3>💾 書き出し</h3>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="exportPalette()">画像出力</button>
-        <button class="btn btn-secondary" onclick="exportCSS()">CSS出力</button>
-        <button class="btn btn-secondary" onclick="clearTree()">クリア</button>
-      </div>
-    </div>
+<div class="section">
+  <h3>💾 書き出し</h3>
+  <div class="btn-group">
+    <button class="btn btn-secondary" onclick="exportPaletteImage()">画像出力</button>
+    <button class="btn btn-secondary" onclick="exportCode()">CSS出力</button>
+    <button class="btn btn-secondary" onclick="clearHistory()">クリア</button>
+  </div>
+</div>
+```
+
   </div>
 
   <!-- 通知 -->
+
   <div id="notification" class="notification"></div>
 
   <!-- スクリプト -->
+
   <script src="script.js"></script>
+
 </body>
 </html>
