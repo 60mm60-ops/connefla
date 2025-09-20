@@ -73,10 +73,10 @@ function hslToRgb(h, s, l) {
 }
 
 // ======================
-// Color Derivation Rules
+// Color Generation Rules
 // ======================
 function deriveAnalogous(baseNode, delta = 30) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let offset of [-delta, delta]) {
         const newH = (hsl.h + offset + 360) % 360;
@@ -88,7 +88,7 @@ function deriveAnalogous(baseNode, delta = 30) {
 }
 
 function deriveComplementary(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const newH = (hsl.h + 180) % 360;
     const newRgb = hslToRgb(newH, hsl.s, hsl.l);
     const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
@@ -96,7 +96,7 @@ function deriveComplementary(baseNode) {
 }
 
 function deriveSplitComplementary(baseNode, delta = 30) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let offset of [180 - delta, 180 + delta]) {
         const newH = (hsl.h + offset + 360) % 360;
@@ -108,7 +108,7 @@ function deriveSplitComplementary(baseNode, delta = 30) {
 }
 
 function deriveTriad(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let offset of [120, 240]) {
         const newH = (hsl.h + offset) % 360;
@@ -120,7 +120,7 @@ function deriveTriad(baseNode) {
 }
 
 function deriveTetrad(baseNode) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let offset of [90, 180, 270]) {
         const newH = (hsl.h + offset) % 360;
@@ -132,7 +132,7 @@ function deriveTetrad(baseNode) {
 }
 
 function deriveTint(baseNode, step = 0.15) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let i = 1; i <= 3; i++) {
         const newL = Math.min(95, hsl.l + (step * 100 * i));
@@ -144,7 +144,7 @@ function deriveTint(baseNode, step = 0.15) {
 }
 
 function deriveShade(baseNode, step = 0.15) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let i = 1; i <= 3; i++) {
         const newL = Math.max(5, hsl.l - (step * 100 * i));
@@ -156,7 +156,7 @@ function deriveShade(baseNode, step = 0.15) {
 }
 
 function deriveTone(baseNode, step = 0.2) {
-    const hsl = rgbToHsl(baseNode.rgb.r, baseNode.rgb.g, baseNode.rgb.b);
+    const hsl = baseNode.hsl;
     const results = [];
     for (let i = 1; i <= 3; i++) {
         const newS = Math.max(5, hsl.s - (step * 100 * i));
@@ -190,7 +190,7 @@ function createColorNode(hex, parentId = null, rule = 'root', params = {}) {
     };
 }
 // ======================
-// Node / History Handling
+// History & Stats
 // ======================
 function addNode(node) {
     treeState.nodes[node.id] = node;
@@ -217,10 +217,13 @@ function addToHistory(hex, rule) {
 
 function updateHistoryUI() {
     const historyContainer = document.getElementById('colorHistory');
+    if (!historyContainer) return;
+
     if (treeState.history.length === 0) {
         historyContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>';
         return;
     }
+
     historyContainer.innerHTML = treeState.history.slice(0, 10).map(item => `
         <div class="history-item" onclick="applyHistoryColor('${item.hex}')">
             <div class="history-color" style="background-color: ${item.hex}"></div>
@@ -230,11 +233,30 @@ function updateHistoryUI() {
             </div>
         </div>
     `).join('');
+
+    // クリアボタン（HTMLに <button class="clear-history-btn" id="clearHistoryBtn"> を置いてない場合は動的に付与）
+    if (!document.getElementById('clearHistoryBtn')) {
+        const btn = document.createElement('button');
+        btn.id = 'clearHistoryBtn';
+        btn.className = 'clear-history-btn';
+        btn.textContent = '履歴をクリア';
+        btn.addEventListener('click', clearHistory);
+        historyContainer.parentElement.appendChild(btn);
+    }
+}
+
+function clearHistory() {
+    treeState.history = [];
+    updateHistoryUI();
+    saveToLocalStorage();
+    showNotification('履歴をクリアしました', 'info');
 }
 
 function applyHistoryColor(hex) {
-    document.getElementById('hexInput').value = hex;
-    document.getElementById('colorPicker').value = hex;
+    const hexInput = document.getElementById('hexInput');
+    const colorPicker = document.getElementById('colorPicker');
+    if (hexInput) hexInput.value = hex;
+    if (colorPicker) colorPicker.value = hex;
     setRootColor();
 }
 
@@ -248,21 +270,27 @@ function formatTime(timestamp) {
 function updateStats() {
     const totalNodes = Object.keys(treeState.nodes).length;
     const adoptedNodes = Object.values(treeState.nodes).filter(n => n.state === 'adopted').length;
-    document.getElementById('totalNodes').textContent = totalNodes;
-    document.getElementById('adoptedNodes').textContent = adoptedNodes;
+    const totalEl = document.getElementById('totalNodes');
+    const adoptedEl = document.getElementById('adoptedNodes');
+    if (totalEl) totalEl.textContent = totalNodes;
+    if (adoptedEl) adoptedEl.textContent = adoptedNodes;
 }
 
 // ======================
-// Root Color & Branches
+// Root & Branching UI
 // ======================
 function setRootColor() {
-    const hex = document.getElementById('hexInput').value;
+    const hexInput = document.getElementById('hexInput');
+    if (!hexInput) return;
+    const hex = hexInput.value;
+
     if (!/^#?[0-9A-F]{6}$/i.test(hex)) {
         showNotification('無効なHEX形式です', 'error');
         return;
     }
 
     const normalizedHex = hex.startsWith('#') ? hex : '#' + hex;
+
     treeState.nodes = {};
     treeState.edges = [];
     treeState.selectedNodeId = null;
@@ -278,7 +306,14 @@ function setRootColor() {
 }
 
 function generateBranch(type) {
-    let selectedId = treeState.selectedNodeId;
+    // 押下フィードバック（inline onclickでも document.activeElement で拾える）
+    const pressed = document.activeElement;
+    if (pressed && pressed.classList.contains('btn')) {
+        pressed.classList.add('btn-pressed');
+        setTimeout(() => pressed.classList.remove('btn-pressed'), 180);
+    }
+
+    const selectedId = treeState.selectedNodeId;
     if (!selectedId) {
         showNotification('色のノードを選択してから分岐を生成してください', 'warning');
         return;
@@ -300,6 +335,7 @@ function generateBranch(type) {
         case 'tint': newNodes = deriveTint(baseNode); break;
         case 'shade': newNodes = deriveShade(baseNode); break;
         case 'tone': newNodes = deriveTone(baseNode); break;
+        default: return;
     }
 
     newNodes.forEach(addNode);
@@ -315,12 +351,11 @@ function generateBranch(type) {
         shade: '暗色',
         tone: '純色'
     };
-
     showNotification(`${baseNode.hex}から${typeNames[type]}を生成しました`, 'success');
 }
 
 // ======================
-// Node State / Selection
+// Selection State
 // ======================
 function setNodeState(state) {
     if (!treeState.selectedNodeId) return;
@@ -330,16 +365,13 @@ function setNodeState(state) {
     updateStats();
     saveToLocalStorage();
 
-    const stateNames = {
-        adopted: '採用',
-        pending: '保留',
-        rejected: '破棄'
-    };
+    const stateNames = { adopted: '採用', pending: '保留', rejected: '破棄' };
     showNotification(`色を${stateNames[state]}しました`, 'info');
 }
 
 function selectNode(nodeId) {
     treeState.selectedNodeId = nodeId;
+
     document.querySelectorAll('.color-node').forEach(node => {
         node.classList.remove('selected');
     });
@@ -357,97 +389,104 @@ function updateSelectedNodeInfo() {
     const branchButtons = document.querySelectorAll('.btn-group .btn');
 
     if (!nodeId || !treeState.nodes[nodeId]) {
-        currentSelectionArea.classList.remove('show');
-        selectionHint.style.display = 'block';
+        if (currentSelectionArea) currentSelectionArea.classList.remove('show');
+        if (selectionHint) selectionHint.style.display = 'block';
         branchButtons.forEach(btn => btn.disabled = true);
         return;
     }
 
-    currentSelectionArea.classList.add('show');
-    selectionHint.style.display = 'none';
+    if (currentSelectionArea) currentSelectionArea.classList.add('show');
+    if (selectionHint) selectionHint.style.display = 'none';
     branchButtons.forEach(btn => btn.disabled = false);
 
     const node = treeState.nodes[nodeId];
-    document.getElementById('selectedNodeDisplay').textContent = node.derivation.rule;
-    document.getElementById('selectedNodeHex').textContent = node.hex;
+    const selDisp = document.getElementById('selectedNodeDisplay');
+    const selHex = document.getElementById('selectedNodeHex');
+    if (selDisp) selDisp.textContent = node.derivation.rule;
+    if (selHex) selHex.textContent = node.hex;
 
-    document.getElementById('popup-hex').textContent = node.hex;
-    document.getElementById('popup-rgb').textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
-    document.getElementById('popup-hsl').textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
-    document.getElementById('popup-css-var').textContent = `--color-${node.derivation.rule}: ${node.hex}`;
+    const ph = document.getElementById('popup-hex');
+    const pr = document.getElementById('popup-rgb');
+    const ps = document.getElementById('popup-hsl');
+    const pv = document.getElementById('popup-css-var');
 
-    document.querySelectorAll('.state-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    if (ph) ph.textContent = node.hex;
+    if (pr) pr.textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
+    if (ps) ps.textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
+    if (pv) pv.textContent = `--color-${node.derivation.rule}: ${node.hex}`;
+
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.querySelector(`.state-btn.${node.state}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-    }
+    if (activeBtn) activeBtn.classList.add('active');
 }
+
 // ======================
-// Tree Rendering
+// Layout & Rendering
 // ======================
 function renderTree() {
     const svg = document.getElementById('treeSvg');
     if (!svg) return;
 
+    // クリア
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     const positions = calculateNodePositions();
 
-    // ==== SVG サイズ自動調整 ====
+    // ---- SVGのサイズを内容に合わせて可変 ----
     const coords = Object.values(positions);
     if (coords.length > 0) {
-        const maxX = Math.max(...coords.map(p => p.x)) + 200;
-        const minX = Math.min(...coords.map(p => p.x)) - 200;
-        const maxY = Math.max(...coords.map(p => p.y)) + 200;
-        const minY = Math.min(...coords.map(p => p.y)) - 200;
+        const pad = 200;
+        const maxX = Math.max(...coords.map(p => p.x)) + pad;
+        const minX = Math.min(...coords.map(p => p.x)) - pad;
+        const maxY = Math.max(...coords.map(p => p.y)) + pad;
+        const minY = Math.min(...coords.map(p => p.y)) - pad;
 
-        svg.setAttribute("width", maxX - minX);
-        svg.setAttribute("height", maxY - minY);
-        svg.setAttribute("viewBox", `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+        svg.setAttribute('width', maxX - minX);
+        svg.setAttribute('height', maxY - minY);
+        svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
     }
 
-    // ==== エッジ描画 ====
+    // ---- エッジ ----
     treeState.edges.forEach(edge => {
         const fromPos = positions[edge.from];
-        const toPos = positions[edge.to];
-        if (fromPos && toPos) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('class', 'connection-line');
-            line.setAttribute('x1', fromPos.x);
-            line.setAttribute('y1', fromPos.y);
-            line.setAttribute('x2', toPos.x);
-            line.setAttribute('y2', toPos.y);
-            svg.appendChild(line);
-        }
+        const toPos   = positions[edge.to];
+        if (!fromPos || !toPos) return;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'connection-line');
+        line.setAttribute('x1', fromPos.x);
+        line.setAttribute('y1', fromPos.y);
+        line.setAttribute('x2', toPos.x);
+        line.setAttribute('y2', toPos.y);
+        svg.appendChild(line);
     });
 
-    // ==== ノード描画 ====
+    // ---- ノード ----
     Object.values(treeState.nodes).forEach(node => {
         const pos = positions[node.id];
         if (!pos) return;
 
-        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.setAttribute('class', `color-node ${node.state}`);
-        group.setAttribute('data-node-id', node.id);
-        group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', `color-node ${node.state}`);
+        g.setAttribute('data-node-id', node.id);
+        g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
 
+        // 選択時グロー
         if (treeState.selectedNodeId === node.id) {
-            const glowCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            glowCircle.setAttribute('r', node.depth === 0 ? 38 : 33);
-            glowCircle.setAttribute('fill', 'none');
-            glowCircle.setAttribute('stroke', 'var(--accent-color)');
-            glowCircle.setAttribute('stroke-width', '3');
-            glowCircle.setAttribute('opacity', '0.6');
-            group.appendChild(glowCircle);
+            const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            glow.setAttribute('r', node.depth === 0 ? 38 : 33);
+            glow.setAttribute('fill', 'none');
+            glow.setAttribute('stroke', 'var(--accent-color)');
+            glow.setAttribute('stroke-width', '3');
+            glow.setAttribute('opacity', '0.6');
+            g.appendChild(glow);
         }
 
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('r', node.depth === 0 ? 32 : 28);
         circle.setAttribute('fill', node.hex);
         circle.setAttribute('class', `node-circle ${node.state}`);
-        group.appendChild(circle);
+        g.appendChild(circle);
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('class', 'node-text');
@@ -455,7 +494,7 @@ function renderTree() {
         text.setAttribute('font-size', '11');
         text.setAttribute('font-weight', 'bold');
         text.textContent = node.hex;
-        group.appendChild(text);
+        g.appendChild(text);
 
         if (node.derivation.rule !== 'root') {
             const ruleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -464,57 +503,56 @@ function renderTree() {
             ruleText.setAttribute('font-size', '9');
             ruleText.setAttribute('opacity', '0.8');
             ruleText.textContent = node.derivation.rule;
-            group.appendChild(ruleText);
+            g.appendChild(ruleText);
         }
 
-        group.addEventListener('click', (e) => {
+        g.addEventListener('click', (e) => {
             e.stopPropagation();
             selectNode(node.id);
         });
 
-        group.addEventListener('touchend', (e) => {
+        g.addEventListener('touchend', (e) => {
             e.stopPropagation();
             e.preventDefault();
             selectNode(node.id);
         });
 
-        svg.appendChild(group);
+        svg.appendChild(g);
     });
 
-    updateViewport();
+    updateViewport(); // 現在のズーム状態を適用
 }
 
 function calculateNodePositions() {
     const positions = {};
     if (!treeState.rootId) return positions;
 
-    const horizontalSpacing = 200;
-    const verticalSpacing = 160;
+    const H = 200;  // 横間隔
+    const V = 160;  // 縦間隔
 
     positions[treeState.rootId] = { x: 0, y: 0 };
 
-    function positionChildren(parentId, parentX, parentY) {
-        const children = Object.values(treeState.nodes).filter(node => node.parentId === parentId);
-        const numChildren = children.length;
-        if (numChildren === 0) return;
+    function dfs(parentId, px, py) {
+        const children = Object.values(treeState.nodes).filter(n => n.parentId === parentId);
+        const n = children.length;
+        if (n === 0) return;
 
-        const childY = parentY + verticalSpacing;
-        const totalWidth = (numChildren - 1) * horizontalSpacing;
-        const startX = parentX - totalWidth / 2;
+        const childY = py + V;
+        const totalW = (n - 1) * H;
+        const startX = px - totalW / 2;
 
-        children.forEach((node, index) => {
-            const childX = startX + index * horizontalSpacing;
-            positions[node.id] = { x: childX, y: childY };
-            positionChildren(node.id, childX, childY);
+        children.forEach((node, i) => {
+            const cx = startX + i * H;
+            positions[node.id] = { x: cx, y: childY };
+            dfs(node.id, cx, childY);
         });
     }
 
-    positionChildren(treeState.rootId, 0, 0);
+    dfs(treeState.rootId, 0, 0);
     return positions;
 }
-
 // ======================
-// Viewport Handling
+// Viewport & Zoom Control
 // ======================
 function centerView() {
     treeState.viewport.x = 0;
@@ -523,37 +561,30 @@ function centerView() {
     updateViewport();
 }
 
-function fitToView() {
-    if (Object.keys(treeState.nodes).length <= 1) {
-        centerView();
-        return;
-    }
-    const positions = calculateNodePositions();
-    const coords = Object.values(positions);
-    const minX = Math.min(...coords.map(p => p.x)) - 60;
-    const maxX = Math.max(...coords.map(p => p.x)) + 60;
-    const minY = Math.min(...coords.map(p => p.y)) - 60;
-    const maxY = Math.max(...coords.map(p => p.y)) + 60;
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    const scale = Math.min(window.innerWidth / contentWidth, window.innerHeight / contentHeight, 1.5);
-
-    treeState.viewport.x = 0;
-    treeState.viewport.y = 0;
-    treeState.viewport.scale = scale;
-    updateViewport();
-}
-
-function resetZoom() {
-    treeState.viewport.scale = 1;
-    updateViewport();
-}
-
 function updateViewport() {
     const svg = document.getElementById('treeSvg');
-    if (svg) {
-        svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`;
+    if (!svg) return;
+    svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`;
+
+    const zoomSlider = document.getElementById('zoomSlider');
+    if (zoomSlider) {
+        zoomSlider.value = treeState.viewport.scale;
     }
+}
+
+function zoomIn() {
+    treeState.viewport.scale = Math.min(treeState.viewport.scale + 0.1, 3);
+    updateViewport();
+}
+
+function zoomOut() {
+    treeState.viewport.scale = Math.max(treeState.viewport.scale - 0.1, 0.5);
+    updateViewport();
+}
+
+function setZoom(value) {
+    treeState.viewport.scale = Math.min(Math.max(parseFloat(value), 0.5), 3);
+    updateViewport();
 }
 
 // ======================
@@ -581,23 +612,27 @@ function saveToJSON() {
     const dataStr = JSON.stringify(treeState, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
+
     const link = document.createElement('a');
     link.href = url;
-    link.download = `conectfla-${Date.now()}.json`;
+    link.download = `conefla-${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
     URL.revokeObjectURL(url);
     showNotification('JSONファイルを保存しました', 'success');
 }
 
 function loadFromJSON() {
-    document.getElementById('fileInput').click();
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) fileInput.click();
 }
 
 function handleFileLoad(event) {
     const file = event.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
@@ -608,9 +643,9 @@ function handleFileLoad(event) {
             updateSelectedNodeInfo();
             updateHistoryUI();
             updateStats();
-            centerView();
             showNotification('JSONファイルを読み込みました', 'success');
         } catch (error) {
+            console.error(error);
             showNotification('ファイルの読み込みに失敗しました', 'error');
         }
     };
@@ -618,7 +653,85 @@ function handleFileLoad(event) {
 }
 
 // ======================
-// Clipboard & Notify
+// Export as Image (Card Style)
+// ======================
+function exportPalette() {
+    if (treeState.history.length === 0) {
+        showNotification('履歴に色がありません', 'warning');
+        return;
+    }
+    generatePaletteImage(treeState.history, 'conefla-history');
+}
+
+function generatePaletteImage(nodes, filename) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const cardWidth = 240;
+    const cardHeight = 120;
+    const padding = 20;
+    const cols = 2;
+    const rows = Math.ceil(nodes.length / cols);
+
+    canvas.width = cols * (cardWidth + padding) + padding;
+    canvas.height = rows * (cardHeight + padding) + padding + 60;
+
+    // background
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // title
+    ctx.fillStyle = '#4ecdc4';
+    ctx.font = 'bold 28px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('コネフラ - 探索履歴パレット', canvas.width / 2, 40);
+
+    nodes.forEach((item, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = padding + col * (cardWidth + padding);
+        const y = 60 + padding + row * (cardHeight + padding);
+
+        // card bg
+        ctx.fillStyle = '#1f1f1f';
+        ctx.fillRect(x, y, cardWidth, cardHeight);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(x, y, cardWidth, cardHeight);
+
+        // color rect
+        ctx.fillStyle = item.hex;
+        ctx.fillRect(x + 10, y + 10, cardWidth - 20, 50);
+
+        // labels
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(item.hex, x + 12, y + 80);
+
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText(item.rule, x + 12, y + 100);
+
+        ctx.fillStyle = '#888';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText(formatTime(item.timestamp), x + 120, y + 100);
+    });
+
+    canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filename}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('パレット画像を保存しました', 'success');
+    }, 'image/png');
+}
+
+// ======================
+// Clipboard
 // ======================
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
@@ -634,14 +747,17 @@ function copyToClipboard(text) {
     });
 }
 
+// ======================
+// Notification
+// ======================
 function showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
+    if (!notification) return;
     notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.classList.add('show');
+    notification.className = `notification ${type} show`;
     setTimeout(() => {
         notification.classList.remove('show');
-    }, 4000);
+    }, 3000);
 }
 
 // ======================
@@ -649,15 +765,15 @@ function showNotification(message, type = 'success') {
 // ======================
 function saveToLocalStorage() {
     try {
-        localStorage.setItem('conectfla-state', JSON.stringify(treeState));
-    } catch (error) {
-        console.warn('Failed to save state:', error);
+        localStorage.setItem('conefla-state', JSON.stringify(treeState));
+    } catch (err) {
+        console.warn('Save failed:', err);
     }
 }
 
 function loadFromLocalStorage() {
     try {
-        const saved = localStorage.getItem('conectfla-state');
+        const saved = localStorage.getItem('conefla-state');
         if (saved) {
             const data = JSON.parse(saved);
             if (data.version >= 2) {
@@ -671,67 +787,67 @@ function loadFromLocalStorage() {
                 }
             }
         }
-    } catch (error) {
-        console.warn('Failed to load state:', error);
+    } catch (err) {
+        console.warn('Load failed:', err);
     }
 }
 
 // ======================
-// Event Listeners & Init
+// Initialization
 // ======================
 function setupEventListeners() {
     const colorPicker = document.getElementById('colorPicker');
     const hexInput = document.getElementById('hexInput');
     const maxDepth = document.getElementById('maxDepth');
+    const zoomSlider = document.getElementById('zoomSlider');
 
-    if (colorPicker) {
-        colorPicker.addEventListener('change', (e) => {
-            const hex = e.target.value.toUpperCase();
-            if (hexInput) hexInput.value = hex;
+    if (colorPicker && hexInput) {
+        colorPicker.addEventListener('change', e => {
+            hexInput.value = e.target.value.toUpperCase();
         });
-    }
-
-    if (hexInput) {
-        hexInput.addEventListener('input', (e) => {
-            let hex = e.target.value.toUpperCase();
-            if (hex.length === 6 && !hex.startsWith('#')) {
-                hex = '#' + hex;
-            }
-            if (/^#[0-9A-F]{6}$/i.test(hex) && colorPicker) {
-                colorPicker.value = hex;
-            }
+        hexInput.addEventListener('input', e => {
+            let val = e.target.value.toUpperCase();
+            if (val.length === 6 && !val.startsWith('#')) val = '#' + val;
+            if (/^#[0-9A-F]{6}$/.test(val)) colorPicker.value = val;
         });
     }
 
     if (maxDepth) {
-        maxDepth.addEventListener('input', (e) => {
+        maxDepth.addEventListener('input', e => {
             treeState.maxDepth = parseInt(e.target.value);
-            const maxDepthValue = document.getElementById('maxDepthValue');
-            if (maxDepthValue) maxDepthValue.textContent = e.target.value;
+            const disp = document.getElementById('maxDepthValue');
+            if (disp) disp.textContent = e.target.value;
             saveToLocalStorage();
         });
+    }
+
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', e => setZoom(e.target.value));
     }
 }
 
 function initialize() {
-    setupEventListeners();
-    loadFromLocalStorage();
+    try {
+        setupEventListeners();
+        loadFromLocalStorage();
 
-    const defaultColor = '#4ECDC4';
-    const hexInput = document.getElementById('hexInput');
-    const colorPicker = document.getElementById('colorPicker');
-    if (hexInput) hexInput.value = defaultColor;
-    if (colorPicker) colorPicker.value = defaultColor;
+        const defaultColor = '#4ECDC4';
+        const hexInput = document.getElementById('hexInput');
+        const colorPicker = document.getElementById('colorPicker');
+        if (hexInput) hexInput.value = defaultColor;
+        if (colorPicker) colorPicker.value = defaultColor;
 
-    if (Object.keys(treeState.nodes).length === 0) {
-        setRootColor();
-    } else {
-        renderTree();
-        updateSelectedNodeInfo();
+        if (Object.keys(treeState.nodes).length === 0) {
+            setRootColor();
+        } else {
+            renderTree();
+            updateSelectedNodeInfo();
+        }
         centerView();
+        showNotification('コネフラへようこそ！', 'info');
+    } catch (err) {
+        console.error('Init error:', err);
     }
-
-    showNotification('コネフラへようこそ！', 'info');
 }
 
 document.addEventListener('DOMContentLoaded', initialize);
