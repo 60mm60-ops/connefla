@@ -163,28 +163,32 @@
             </div>
         </div>
 
-        <div class="detail-panel">
-            <h3>🔍 選択中の色</h3>
-            
-            <div id="selectedNodeInfo" style="display: none;">
-                <div class="color-preview" id="selectedColorPreview"></div>
-                
+        </div>
+
+    <div id="node-popup" class="node-popup" style="display:none;">
+        <div class="popup-content">
+            <button class="popup-close-btn" onclick="closePopup()">×</button>
+            <div class="popup-header">
+                <div class="color-preview" id="popup-color-preview"></div>
+                <div class="hex-code" id="popup-hex-code"></div>
+            </div>
+            <div class="popup-body">
                 <div class="color-formats">
                     <div class="color-format" onclick="copyToClipboard(this.dataset.value)" data-value="">
                         <span class="format-label">HEX</span>
-                        <span id="selectedHex"></span>
+                        <span id="popup-hex"></span>
                     </div>
                     <div class="color-format" onclick="copyToClipboard(this.dataset.value)" data-value="">
                         <span class="format-label">RGB</span>
-                        <span id="selectedRgb"></span>
+                        <span id="popup-rgb"></span>
                     </div>
                     <div class="color-format" onclick="copyToClipboard(this.dataset.value)" data-value="">
                         <span class="format-label">HSL</span>
-                        <span id="selectedHsl"></span>
+                        <span id="popup-hsl"></span>
                     </div>
                     <div class="color-format" onclick="copyToClipboard(this.dataset.value)" data-value="">
                         <span class="format-label">CSS VAR</span>
-                        <span id="selectedCssVar"></span>
+                        <span id="popup-css-var"></span>
                     </div>
                 </div>
 
@@ -203,25 +207,16 @@
                 <div class="node-info">
                     <div class="info-row">
                         <span class="info-label">生成ルール</span>
-                        <span class="info-value" id="selectedRule">root</span>
+                        <span class="info-value" id="popup-rule">root</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">深度</span>
-                        <span class="info-value" id="selectedDepth">0</span>
+                        <span class="info-value" id="popup-depth">0</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">作成日時</span>
-                        <span class="info-value" id="selectedTime">--</span>
+                        <span class="info-value" id="popup-time">--</span>
                     </div>
-                </div>
-            </div>
-
-            <div id="noSelection">
-                <div style="text-align: center; margin-top: 60px;">
-                    <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.3;">🎨</div>
-                    <p style="color: var(--text-muted);">
-                        色のノードを選択してください
-                    </p>
                 </div>
             </div>
         </div>
