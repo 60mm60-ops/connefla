@@ -31,27 +31,55 @@ body {
     grid-template-columns: 320px 1fr;
 }
 
-/* スマホでも横並びを維持 */
+/* ===================== */
+/* モバイルレイアウト    */
+/* ===================== */
 @media (max-width: 768px) {
     body {
-        grid-template-columns: 240px 1fr; /* メニュー幅を縮小 */
+        display: block; /* 縦並びに切り替え */
+        overflow-y: auto;
     }
-    
+
     .control-panel {
+        display: contents; /* 内部の top/bottom-controls だけを使う */
+    }
+
+    .top-controls {
         padding: 16px;
-        overflow-y: auto; /* 縦スクロール可能 */
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-dark);
+    }
+
+    .canvas-area {
+        width: 100%;
+        height: auto;
+        min-height: 50vh; /* ツリー領域は可変だが最低限確保 */
+        background-color: var(--bg-primary);
+    }
+
+    .bottom-controls {
+        padding: 16px;
+        border-top: 1px solid var(--border-color);
+        background-color: var(--bg-dark);
+    }
+
+    .header h1 {
+        font-size: 1.4rem;
     }
 
     .section {
-        padding: 12px 0;
+        padding: 16px 0;
     }
 
     .btn-group .btn {
-        font-size: 0.75rem;
-        padding: 6px;
+        font-size: 0.8rem;
+        padding: 8px;
     }
 }
 
+/* ===================== */
+/* 共通デザイン          */
+/* ===================== */
 .app-container {
     height: 100%;
     display: grid;
@@ -407,7 +435,7 @@ body {
         gap: 4px;
         padding: 4px;
     }
-    
+
     .canvas-tool-btn {
         width: 32px;
         height: 32px;
