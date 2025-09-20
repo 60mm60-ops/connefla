@@ -278,86 +278,84 @@ function updateSelectedNodeInfo(){
 // =============================
 // ツリー描画（C字カーブ、S字禁止）
 // =============================
-function calculateNodePositions(){
-  const pos={}; if(!treeState.rootId) return pos;
-  const H=200, V=160; // spacing
-  pos[treeState.rootId] = {x:0,y:0};
-  function walk(pid, px, py){
-    const children = Object.values(treeState.nodes).filter(n=>n.parentId===pid);
-    if(!children.length) return;
-    const y = py + V;
-    const totalW = (children.length-1)*H;
-    const startX = px - totalW/2;
-    children.forEach((n,i)=>{
-      const x = startX + i*H;
-      pos[n.id] = {x, y};
-      walk(n.id, x, y);
-    });
-  }
-  walk(treeState.rootId, 0, 0);
-  return pos;
-}
-
 function renderTree(){
   const svg=document.getElementById('treeSvg'); if(!svg) return;
   while(svg.firstChild) svg.removeChild(svg.firstChild);
-  const positions = calculateNodePositions();
-  // C字カーブ（制御点を同じXにしてS字を防止）
-  treeState.edges.forEach(e=>{
-    const s=positions[e.from], d=positions[e.to];
-    if(!s || !d) return;
-    const cx = (s.x + d.x) / 2; // ← 同じXを共有
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('class','connection-line');
-    path.setAttribute('d', `M ${s.x},${s.y} C ${cx},${s.y} ${cx},${d.y} ${d.x},${d.y}`);
-    svg.appendChild(path);
-  });
-  // ノード
-  Object.values(treeState.nodes).forEach(node=>{
-    const p=positions[node.id]; if(!p) return;
-    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class',`color-node ${node.state}`);
-    g.setAttribute('data-node-id',node.id);
-    g.setAttribute('transform',`translate(${p.x},${p.y})`);
+  const nodesData = Object.values(treeState.nodes);
+  if (nodesData.length === 0) return;
+  
+  const rootNode = d3.stratify()
+    .id(d => d.id)
+    .parentId(d => d.parentId)
+    (nodesData);
+  
+  const treeLayout = d3.tree()
+    .nodeSize([200, 160]);
+  
+  const treeData = treeLayout(rootNode);
+  
+  const linkGenerator = d3.linkHorizontal()
+    .x(d => d.y)
+    .y(d => d.x);
 
-    if(treeState.selectedNodeId===node.id){
-      const glow=document.createElementNS('http://www.w3.org/2000/svg','circle');
-      glow.setAttribute('r', node.depth===0? 38: 33);
-      glow.setAttribute('fill','none');
-      glow.setAttribute('stroke','var(--accent-color)');
-      glow.setAttribute('stroke-width','3');
-      glow.setAttribute('opacity','0.6');
-      g.appendChild(glow);
-    }
-    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('r', node.depth===0? 32: 28);
-    c.setAttribute('fill', node.hex);
-    c.setAttribute('class',`node-circle ${node.state}`);
-    g.appendChild(c);
-    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('class','node-text');
-    t.setAttribute('y', node.depth===0? 46: 42);
-    t.setAttribute('font-size','11');
-    t.setAttribute('font-weight','bold');
-    t.textContent = node.hex;
-    g.appendChild(t);
-    if(node.derivation.rule!=='root'){
-      const r=document.createElementNS('http://www.w3.org/2000/svg','text');
-      r.setAttribute('class','node-text');
-      r.setAttribute('y', node.depth===0? 60: 56);
-      r.setAttribute('font-size','9');
-      r.setAttribute('opacity','0.8');
-      r.textContent = node.derivation.rule;
-      g.appendChild(r);
-    }
-    g.addEventListener('click', ev=>{ ev.stopPropagation(); selectNode(node.id); });
-    svg.appendChild(g);
-  });
-  // SVGの高さをツリーの深さから拡張（下パネルを押し下げる）
-  const depths = Object.values(treeState.nodes).map(n=>n.depth);
-  const maxDepth = depths.length ? Math.max(...depths) : 0;
-  const svgHeight = maxDepth * 160 + 320; // 160=vertical spacing
+  svg.selectAll('.connection-line')
+    .data(treeData.links())
+    .enter()
+    .append('path')
+    .attr('class', 'connection-line')
+    .attr('d', linkGenerator)
+    .attr('transform', `translate(${svg.getBoundingClientRect().width / 2}, 0)`);
+
+  svg.selectAll('.color-node')
+    .data(treeData.descendants())
+    .enter()
+    .append('g')
+    .attr('class', d => `color-node ${treeState.nodes[d.id].state}`)
+    .attr('data-node-id', d => d.id)
+    .attr('transform', d => `translate(${d.y + svg.getBoundingClientRect().width / 2}, ${d.x})`)
+    .on('click', (ev, d) => {
+      ev.stopPropagation();
+      selectNode(d.id);
+    })
+    .each(function(d) {
+      const node = treeState.nodes[d.id];
+      const g = d3.select(this);
+
+      if (treeState.selectedNodeId === node.id) {
+        g.append('circle')
+          .attr('r', node.depth === 0 ? 38 : 33)
+          .attr('fill', 'none')
+          .attr('stroke', 'var(--accent-color)')
+          .attr('stroke-width', '3')
+          .attr('opacity', '0.6');
+      }
+
+      g.append('circle')
+        .attr('r', node.depth === 0 ? 32 : 28)
+        .attr('fill', node.hex)
+        .attr('class', `node-circle ${node.state}`);
+
+      g.append('text')
+        .attr('class', 'node-text')
+        .attr('y', node.depth === 0 ? 46 : 42)
+        .attr('font-size', '11')
+        .attr('font-weight', 'bold')
+        .text(node.hex);
+
+      if (node.derivation.rule !== 'root') {
+        g.append('text')
+          .attr('class', 'node-text')
+          .attr('y', node.depth === 0 ? 60 : 56)
+          .attr('font-size', '9')
+          .attr('opacity', '0.8')
+          .text(node.derivation.rule);
+      }
+    });
+
+  const maxDepth = treeData.descendants().reduce((max, d) => Math.max(max, d.depth), 0);
+  const svgHeight = maxDepth * 160 + 320;
   svg.style.height = `${svgHeight}px`;
+
   updateViewport();
 }
 
@@ -389,28 +387,22 @@ function exportPaletteImage(){
   const mode = (document.querySelector('input[name="imageFormat"]:checked')||{}).value || 'horizontal';
   const nodes = adoptedOrAll();
   if(!nodes.length){ showNotification('エクスポートする色がありません','warning'); return; }
-  // 高解像度
-  const scale = 2; // @2x
+  const scale = 2;
   const canvas=document.createElement('canvas');
   const ctx=canvas.getContext('2d');
-  // レイアウトサイズ
   let w=1200, h=520;
   if(mode==='grid'){ w=1000; h = 200 + Math.ceil(nodes.length/5)*220; }
   if(mode==='circle'){ w=1000; h=600; }
   if(mode==='artist'){ w=1400; h=800; }
   canvas.width = w*scale; canvas.height = h*scale;
   ctx.scale(scale, scale);
-  // 背景
   const grad = ctx.createLinearGradient(0,0,0,h);
   grad.addColorStop(0,'#0a0a0a'); grad.addColorStop(1,'#1a1a1a');
   ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
   ctx.fillStyle='#4ecdc4'; ctx.font='bold 36px Inter, sans-serif';
   ctx.textAlign='center'; ctx.fillText('Color Palette by コネフラ', w/2, 52);
-  // 描画関数
   const drawCard = (x,y,size,hex,rule) =>{
-    // swatch
     ctx.fillStyle = hex; ctx.fillRect(x, y, size, size);
-    // label
     ctx.fillStyle = '#0f172a88'; ctx.fillRect(x, y+size-42, size, 42);
     ctx.fillStyle = '#e2e8f0'; ctx.font='bold 18px Inter, sans-serif'; ctx.textAlign='center';
     ctx.fillText(hex, x+size/2, y+size-18);
@@ -441,7 +433,6 @@ function exportPaletteImage(){
     });
   }
   else if(mode==='artist'){
-    // 左に大きい主色、右に補助色グリッド
     const main = nodes[0];
     drawCard(60,120,320, main.hex, main.derivation.rule);
     const rest = nodes.slice(1);
@@ -478,7 +469,7 @@ function exportCode(){
     content = `:root{\n` + nodes.map((n,i)=>`  --color-${n.derivation.rule}${i+1}: ${n.hex};`).join('\n') + `\n}\n`;
   }else if(fmt==='scss'){
     content = nodes.map((n,i)=>`$color-${n.derivation.rule}${i+1}: ${n.hex};`).join('\n')+'\n';
-  }else{ // json
+  }else{
     const json = nodes.map(n=>({rule:n.derivation.rule, hex:n.hex, rgb:n.rgb, hsl:n.hsl}));
     content = JSON.stringify({version:treeState.version, colors: json}, null, 2);
   }
@@ -523,7 +514,6 @@ function loadFromLocalStorage(){
 // 初期化
 // =============================
 function initialize(){
-  // 入力連動
   const picker=document.getElementById('colorPicker');
   const input=document.getElementById('hexInput');
   if(picker && input) {
@@ -536,9 +526,7 @@ function initialize(){
       if(/^#[0-9A-F]{6}$/i.test(v)) picker.value=v;
     });
   }
-  // ローカルストレージから復元
   loadFromLocalStorage();
-  // デフォルト色の設定
   const defaultColor='#4ECDC4';
   if(!Object.keys(treeState.nodes).length){
     if(input) input.value=defaultColor;
@@ -548,7 +536,6 @@ function initialize(){
     renderTree();
     updateSelectedNodeInfo();
   }
-  // 深度スライダの設定
   const depth=document.getElementById('maxDepth');
   const depthValue=document.getElementById('maxDepthValue');
   if(depth && depthValue) {
@@ -560,7 +547,6 @@ function initialize(){
       saveToLocalStorage();
     });
   }
-  // ズームスライダがある場合の設定
   const zoomSlider = document.getElementById('zoomSlider');
   if(zoomSlider) {
     zoomSlider.value = treeState.viewport.scale;
@@ -568,7 +554,6 @@ function initialize(){
       setZoom(parseFloat(e.target.value));
     });
   }
-  // SVGのクリックでノード選択解除
   const svg = document.getElementById('treeSvg');
   if(svg) {
     svg.addEventListener('click', e=>{
@@ -579,21 +564,15 @@ function initialize(){
       }
     });
   }
-  // 初期表示を更新
   updateBranchButtonsState(false);
-  // ウェルカムメッセージ
   showNotification('コネフラへようこそ！','info');
 }
-// DOM読み込み完了時に初期化実行
 document.addEventListener('DOMContentLoaded', initialize);
-// 離脱時に状態を保存
 window.addEventListener('beforeunload', saveToLocalStorage);
-// エラーハンドリング
 window.addEventListener('error', function(e) {
   console.error('Global error:', e.error);
   showNotification('予期しないエラーが発生しました', 'error');
 });
-// 未処理のPromise拒否をキャッチ
 window.addEventListener('unhandledrejection', function(e) {
   console.error('Unhandled promise rejection:', e.reason);
   showNotification('処理中にエラーが発生しました', 'error');
