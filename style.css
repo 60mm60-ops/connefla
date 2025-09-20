@@ -23,7 +23,7 @@ html, body {
     font-family: 'Inter', sans-serif;
     color: var(--text-primary);
     background-color: var(--bg-primary);
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 body {
@@ -31,13 +31,13 @@ body {
     grid-template-columns: 320px 1fr;
 }
 
-/* PCデフォルト */
 .app-container {
     height: 100%;
     display: grid;
     grid-template-columns: inherit;
 }
 
+/* PC用レイアウト */
 .control-panel {
     background-color: var(--bg-dark);
     padding: 24px;
@@ -45,6 +45,84 @@ body {
     flex-direction: column;
     overflow-y: auto;
     border-right: 1px solid var(--border-color);
+}
+
+.canvas-area {
+    position: relative;
+    background-color: var(--bg-primary);
+    height: 100%;
+}
+
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    cursor: grab;
+    position: relative;
+}
+
+.canvas-container.dragging {
+    cursor: grabbing;
+}
+
+.tree-svg {
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    transition: transform 0.2s ease-out;
+    overflow: visible;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    body {
+        display: block;
+        overflow-y: auto;
+    }
+
+    .app-container {
+        display: block;
+    }
+
+    .control-panel {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid var(--border-color);
+        max-height: none;
+        padding: 16px;
+    }
+
+    .canvas-area {
+        width: 100%;
+        height: auto;        /* ←固定高さやめる */
+        min-height: 400px;   /* 最低限だけ確保 */
+    }
+
+    .canvas-container {
+        width: 100%;
+        height: auto;
+        min-height: 400px;
+        overflow: visible;   /* ←切れないように変更 */
+    }
+
+    .tree-svg {
+        width: 100%;
+        height: auto;
+        overflow: visible;   /* ←切れないように変更 */
+    }
+
+    .header h1 {
+        font-size: 1.4rem;
+    }
+    
+    .section {
+        padding: 16px 0;
+    }
+    
+    .btn-group .btn {
+        font-size: 0.8rem;
+        padding: 8px;
+    }
 }
 
 .header {
@@ -349,24 +427,6 @@ body {
     text-align: right;
 }
 
-.canvas-area {
-    position: relative;
-    background-color: var(--bg-primary);
-    height: 100%;
-}
-
-.canvas-container {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    cursor: grab;
-    position: relative;
-}
-
-.canvas-container.dragging {
-    cursor: grabbing;
-}
-
 .canvas-tools {
     position: absolute;
     top: 16px;
@@ -409,13 +469,6 @@ body {
 
 .canvas-tool-btn:hover {
     background-color: var(--border-color);
-}
-
-.tree-svg {
-    width: 100%;
-    height: 100%;
-    transform-origin: center center;
-    transition: transform 0.2s ease-out;
 }
 
 .connection-line {
@@ -495,29 +548,4 @@ body {
 .notification.info {
     background-color: #3498db;
     color: white;
-}
-
-/* ============================ */
-/* スマホ・タブレット (iPad含む) */
-/* ============================ */
-@media (max-width: 1024px) {
-    body {
-        display: block; /* 縦並びにする */
-    }
-
-    .control-panel {
-        display: contents; /* top-controls, bottom-controls を直に並べる */
-    }
-
-    .canvas-container {
-        overflow: visible;   /* ノードを切らない */
-        min-height: 60vh;    /* ある程度高さを確保 */
-    }
-
-    .tree-svg {
-        width: 100%;
-        height: auto;
-        display: block;
-        transform: none !important; /* transform座標変換を無効化 */
-    }
 }
