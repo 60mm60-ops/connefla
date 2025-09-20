@@ -1,579 +1,854 @@
-// =============================
-// 状態
-// =============================
+// ======================
+// Data Model & State
+// ======================
 let treeState = {
-  version: 4.2,
-  rootId: null,
-  nodes: {},
-  edges: [],
-  maxDepth: 3,
-  viewport: { x: 0, y: 0, scale: 1 },
-  selectedNodeId: null,
-  history: [],
-  createdAt: Date.now()
+    version: 3.2,
+    rootId: null,
+    nodes: {},
+    edges: [],
+    maxDepth: 3,
+    viewport: { x: 0, y: 0, scale: 1 },
+    selectedNodeId: null,
+    history: [],
+    createdAt: Date.now()
 };
 
-// =============================
-// 色変換
-// =============================
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let viewportStart = { ...treeState.viewport };
+
+// ======================
+// Color Conversion
+// ======================
 function hexToRgb(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
 }
+
 function rgbToHex(r, g, b) {
-  const toHex = c => (Math.round(c).toString(16).padStart(2, '0'));
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+    const toHex = (c) => {
+        const hex = Math.round(c).toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+    };
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 }
+
 function rgbToHsl(r, g, b) {
-  r/=255; g/=255; b/=255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b);
-  let h,s,l=(max+min)/2;
-  if(max===min){ h=s=0; }
-  else{
-    const d=max-min; s=l>0.5? d/(2-max-min): d/(max+min);
-    switch(max){
-      case r: h=(g-b)/d+(g<b?6:0); break;
-      case g: h=(b-r)/d+2; break;
-      case b: h=(r-g)/d+4; break;
-    } h/=6;
-  }
-  return {h:Math.round(h*360), s:Math.round(s*100), l:Math.round(l*100)};
-}
-function hslToRgb(h,s,l){
-  h/=360; s/=100; l/=100;
-  const a=s*Math.min(l,1-l);
-  const f=n=>{
-    const k=(n+h*12)%12;
-    return l - a*Math.max(Math.min(k-3, 9-k, 1), -1);
-  };
-  return { r:Math.round(f(0)*255), g:Math.round(f(8)*255), b:Math.round(f(4)*255) };
-}
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
 
-// =============================
-// 派生生成
-// =============================
-function createColorNode(hex, parentId=null, rule='root', params={}) {
-  const id = 'n' + Date.now() + Math.random().toString(36).slice(2,9);
-  const rgb = hexToRgb(hex); const hsl = rgbToHsl(rgb.r,rgb.g,rgb.b);
-  const depth = parentId ? (treeState.nodes[parentId].depth + 1) : 0;
-  return { id, parentId, hex:hex.toUpperCase(), rgb, hsl,
-           derivation:{rule, params}, state:'pending', depth, createdAt: Date.now() };
-}
-function addNode(node){
-  treeState.nodes[node.id] = node;
-  if(node.parentId) treeState.edges.push({from: node.parentId, to: node.id});
-  addToHistory(node.hex, node.derivation.rule);
-  updateStats();
-}
-
-function deriveAnalogous(base, delta=30){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return [-delta, +delta].map(off=>{
-    const rgb=hslToRgb((hsl.h+off+360)%360, hsl.s, hsl.l);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'analogous', {delta: off});
-  });
-}
-function deriveComplementary(base){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  const rgb=hslToRgb((hsl.h+180)%360, hsl.s, hsl.l);
-  return [createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'complementary')];
-}
-function deriveSplitComplementary(base, delta=30){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return [180-delta, 180+delta].map(off=>{
-    const rgb=hslToRgb((hsl.h+off+360)%360, hsl.s, hsl.l);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'split', {offset: off});
-  });
-}
-function deriveTriad(base){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return [120,240].map(off=>{
-    const rgb=hslToRgb((hsl.h+off)%360, hsl.s, hsl.l);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'triad', {offset: off});
-  });
-}
-function deriveTetrad(base){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return [90,180,270].map(off=>{
-    const rgb=hslToRgb((hsl.h+off)%360, hsl.s, hsl.l);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'tetrad', {offset: off});
-  });
-}
-function deriveTint(base, step=0.15){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return Array.from({length:3},(_,i)=>{
-    const L=Math.min(95, hsl.l + step*100*(i+1));
-    const rgb=hslToRgb(hsl.h, Math.max(10, hsl.s-5*(i+1)), L);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'tint', {step: i+1});
-  });
-}
-function deriveShade(base, step=0.15){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return Array.from({length:3},(_,i)=>{
-    const L=Math.max(5, hsl.l - step*100*(i+1));
-    const rgb=hslToRgb(hsl.h, Math.min(100, hsl.s+3*(i+1)), L);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'shade', {step: i+1});
-  });
-}
-function deriveTone(base, step=0.2){
-  const hsl=rgbToHsl(base.rgb.r,base.rgb.g,base.rgb.b);
-  return Array.from({length:3},(_,i)=>{
-    const S=Math.max(5, hsl.s - step*100*(i+1));
-    const rgb=hslToRgb(hsl.h, S, hsl.l);
-    return createColorNode(rgbToHex(rgb.r,rgb.g,rgb.b), base.id, 'tone', {step: i+1});
-  });
-}
-// =============================
-// 履歴・統計
-// =============================
-function addToHistory(hex, rule){
-  treeState.history.unshift({hex: hex.toUpperCase(), rule, timestamp: Date.now()});
-  if(treeState.history.length>30) treeState.history.length = 30;
-  updateHistoryUI(); saveToLocalStorage();
-}
-function updateHistoryUI(){
-  const el=document.getElementById('colorHistory');
-  if(!treeState.history.length){
-    el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">履歴がありません</div>';
-    return;
-  }
-  el.innerHTML = treeState.history.slice(0,20).map(item=>` <div class="history-item" onclick="applyHistoryColor('${item.hex}')"> <div class="history-color" style="background:${item.hex}"></div> <div class="history-info"> <div class="history-hex">${item.hex}</div> <div class="history-time">${new Date(item.timestamp).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})} - ${item.rule}</div> </div> </div>`).join('');
-}
-function applyHistoryColor(hex){
-  document.getElementById('hexInput').value = hex;
-  document.getElementById('colorPicker').value = hex;
-  setRootColor();
-}
-function updateStats(){
-  const all=Object.keys(treeState.nodes).length;
-  const adopted=Object.values(treeState.nodes).filter(n=>n.state==='adopted').length;
-  document.getElementById('totalNodes').textContent = all;
-  document.getElementById('adoptedNodes').textContent = adopted;
-}
-function clearHistory(){
-  if(!confirm('履歴とツリーをすべて削除します。よろしいですか？')) return;
-  treeState.nodes={}; treeState.edges=[]; treeState.rootId=null;
-  treeState.selectedNodeId=null; treeState.history=[];
-  renderTree(); updateSelectedNodeInfo(); updateStats(); saveToLocalStorage();
-  showNotification('履歴とツリーをクリアしました','success');
-}
-
-// =============================
-// クリップボード機能
-// =============================
-function copyToClipboard(text) {
-  if (!text) return;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => {
-      showNotification(`${text} をコピーしました`, 'success');
-    }).catch(() => {
-      fallbackCopyToClipboard(text);
-    });
-  } else {
-    fallbackCopyToClipboard(text);
-  }
-}
-function fallbackCopyToClipboard(text) {
-  const textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.style.position = 'fixed';
-  textArea.style.left = '-999999px';
-  textArea.style.top = '-999999px';
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  try {
-    document.execCommand('copy');
-    showNotification(`${text} をコピーしました`, 'success');
-  } catch (err) {
-    showNotification('コピーに失敗しました', 'error');
-  }
-  document.body.removeChild(textArea);
-}
-
-// =============================
-// UI基礎
-// =============================
-function updateBranchButtonsState(enable, baseColor='#4ECDC4'){
-  document.querySelectorAll('.btn-branch').forEach(btn=>{
-    if(enable){
-      btn.classList.add('enabled');
-      btn.style.backgroundColor = baseColor;
-      btn.disabled = false;
-    }else{
-      btn.classList.remove('enabled');
-      btn.style.backgroundColor = 'var(--border-color)';
-      btn.disabled = true;
+    if (max === min) {
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
     }
-  });
-}
-function setRootColor(){
-  const hex = document.getElementById('hexInput').value;
-  if(!/^#?[0-9A-F]{6}$/i.test(hex)){
-    showNotification('無効なHEX形式です','error'); return;
-  }
-  const normalized = hex.startsWith('#')? hex: '#'+hex;
-  treeState.nodes={}; treeState.edges=[]; treeState.selectedNodeId=null;
-  const root = createColorNode(normalized);
-  root.state='adopted'; addNode(root); treeState.rootId = root.id;
-  renderTree(); selectNode(root.id);
-  showNotification('起点色に設定しました','success');
-  updateBranchButtonsState(true, normalized);
-}
-function generateBranch(type){
-  const id = treeState.selectedNodeId;
-  if(!id){ showNotification('色ノードを選択してから分岐を生成してください','warning'); return; }
-  const base=treeState.nodes[id];
-  if(base.depth >= treeState.maxDepth){
-    showNotification(`最大深度${treeState.maxDepth}に達しています`,'warning'); return;
-  }
-  let newNodes=[];
-  switch(type){
-    case 'analogous': newNodes=deriveAnalogous(base); break;
-    case 'complementary': newNodes=deriveComplementary(base); break;
-    case 'split': newNodes=deriveSplitComplementary(base); break;
-    case 'triad': newNodes=deriveTriad(base); break;
-    case 'tetrad': newNodes=deriveTetrad(base); break;
-    case 'tint': newNodes=deriveTint(base); break;
-    case 'shade': newNodes=deriveShade(base); break;
-    case 'tone': newNodes=deriveTone(base); break;
-  }
-  newNodes.forEach(addNode); renderTree();
-  showNotification(`${base.hex}から${type}を生成しました`,'success');
-}
-function setNodeState(state){
-  if(!treeState.selectedNodeId) return;
-  treeState.nodes[treeState.selectedNodeId].state = state;
-  renderTree(); updateSelectedNodeInfo(); updateStats(); saveToLocalStorage();
-  const name={adopted:'採用',pending:'保留',rejected:'破棄'}[state];
-  showNotification(`色を${name}しました`,'info');
-}
-function selectNode(nodeId){
-  treeState.selectedNodeId = nodeId;
-  document.querySelectorAll('.color-node').forEach(n=>n.classList.remove('selected'));
-  const el=document.querySelector(`[data-node-id="${nodeId}"]`); if(el) el.classList.add('selected');
-  updateSelectedNodeInfo();
-}
-function updateSelectedNodeInfo(){
-  const id=treeState.selectedNodeId;
-  const area=document.getElementById('currentSelectionArea');
-  const hint=document.getElementById('selectionHint');
-  const buttons=document.querySelectorAll('.btn-branch');
-  if(!id || !treeState.nodes[id]){
-    area.classList.remove('show'); hint.style.display='block';
-    buttons.forEach(b=>b.disabled=true); return;
-  }
-  area.classList.add('show'); hint.style.display='none';
-  buttons.forEach(b=>b.disabled=false);
-  const node=treeState.nodes[id];
-  document.getElementById('selectedNodeDisplay').textContent = node.derivation.rule;
-  document.getElementById('selectedNodeHex').textContent = node.hex;
-  document.getElementById('popup-hex').textContent = node.hex;
-  document.getElementById('popup-rgb').textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
-  document.getElementById('popup-hsl').textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
-  document.getElementById('popup-css-var').textContent = `--color-${node.derivation.rule}: ${node.hex}`;
-  document.querySelectorAll('.state-btn').forEach(b=>b.classList.remove('active'));
-  const active=document.querySelector(`.state-btn.${node.state}`); if(active) active.classList.add('active');
-}
-// =============================
-// ツリー描画
-// =============================
-function renderTree(){
-  const svg=d3.select('#treeSvg'); if(svg.empty()) return;
-  svg.selectAll('*').remove();
-  const nodesData = Object.values(treeState.nodes);
-  if (nodesData.length === 0) return;
-  
-  const rootNode = d3.stratify()
-    .id(d => d.id)
-    .parentId(d => d.parentId)
-    (nodesData);
-  
-  const treeLayout = d3.tree()
-    .nodeSize([200, 160]);
-  
-  const treeData = treeLayout(rootNode);
-  
-  const linkGenerator = d3.linkHorizontal()
-    .x(d => d.y)
-    .y(d => d.x);
 
-  svg.selectAll('.connection-line')
-    .data(treeData.links())
-    .enter()
-    .append('path')
-    .attr('class', 'connection-line')
-    .attr('d', linkGenerator)
-    .attr('transform', `translate(${svg.node().getBoundingClientRect().width / 2}, 0)`);
-
-  svg.selectAll('.color-node')
-    .data(treeData.descendants())
-    .enter()
-    .append('g')
-    .attr('class', d => `color-node ${treeState.nodes[d.id].state}`)
-    .attr('data-node-id', d => d.id)
-    .attr('transform', d => `translate(${d.y + svg.node().getBoundingClientRect().width / 2}, ${d.x})`)
-    .on('click', (ev, d) => {
-      ev.stopPropagation();
-      selectNode(d.id);
-    })
-    .each(function(d) {
-      const node = treeState.nodes[d.id];
-      const g = d3.select(this);
-
-      if (treeState.selectedNodeId === node.id) {
-        g.append('circle')
-          .attr('r', node.depth === 0 ? 38 : 33)
-          .attr('fill', 'none')
-          .attr('stroke', 'var(--accent-color)')
-          .attr('stroke-width', '3')
-          .attr('opacity', '0.6');
-      }
-
-      g.append('circle')
-        .attr('r', node.depth === 0 ? 32 : 28)
-        .attr('fill', node.hex)
-        .attr('class', `node-circle ${node.state}`);
-
-      g.append('text')
-        .attr('class', 'node-text')
-        .attr('y', node.depth === 0 ? 46 : 42)
-        .attr('font-size', '11')
-        .attr('font-weight', 'bold')
-        .text(node.hex);
-
-      if (node.derivation.rule !== 'root') {
-        g.append('text')
-          .attr('class', 'node-text')
-          .attr('y', node.depth === 0 ? 60 : 56)
-          .attr('font-size', '9')
-          .attr('opacity', '0.8')
-          .text(node.derivation.rule);
-      }
-    });
-
-  const maxDepth = treeData.descendants().reduce((max, d) => Math.max(max, d.depth), 0);
-  const svgHeight = maxDepth * 160 + 320;
-  d3.select('#treeSvg').style('height', `${svgHeight}px`);
-
-  updateViewport();
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
-// =============================
-// ビューポート（ズームのみ。パンは無し）
-// =============================
-function updateViewport(){
-  const svg=document.getElementById('treeSvg');
-  if(svg){ svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`; }
+function hslToRgb(h, s, l) {
+    h /= 360; s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+        const k = (n + h * 12) % 12;
+        return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    };
+    return {
+        r: Math.round(f(0) * 255),
+        g: Math.round(f(8) * 255),
+        b: Math.round(f(4) * 255)
+    };
 }
-function setZoom(v){
-  const val = Math.max(0.5, Math.min(2.5, Number(v)));
-  treeState.viewport.scale = val;
-  const slider = document.getElementById('zoomSlider');
-  if(slider) slider.value = val;
-  updateViewport();
-}
-function zoomIn(){ setZoom(treeState.viewport.scale + 0.1); }
-function zoomOut(){ setZoom(treeState.viewport.scale - 0.1); }
 
-// =============================
-// 出力（画像／コード）
-// =============================
-function adoptedOrAll(){
-  const adopted = Object.values(treeState.nodes).filter(n=>n.state==='adopted');
-  return adopted.length ? adopted : Object.values(treeState.nodes).sort((a,b)=>a.depth-b.depth);
-}
-function exportPaletteImage(){
-  const mode = (document.querySelector('input[name="imageFormat"]:checked')||{}).value || 'horizontal';
-  const nodes = adoptedOrAll();
-  if(!nodes.length){ showNotification('エクスポートする色がありません','warning'); return; }
-  const scale = 2;
-  const canvas=document.createElement('canvas');
-  const ctx=canvas.getContext('2d');
-  let w=1200, h=520;
-  if(mode==='grid'){ w=1000; h = 200 + Math.ceil(nodes.length/5)*220; }
-  if(mode==='circle'){ w=1000; h=600; }
-  if(mode==='artist'){ w=1400; h=800; }
-  canvas.width = w*scale; canvas.height = h*scale;
-  ctx.scale(scale, scale);
-  const grad = ctx.createLinearGradient(0,0,0,h);
-  grad.addColorStop(0,'#0a0a0a'); grad.addColorStop(1,'#1a1a1a');
-  ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle='#4ecdc4'; ctx.font='bold 36px Inter, sans-serif';
-  ctx.textAlign='center'; ctx.fillText('Color Palette by コネフラ', w/2, 52);
-  const drawCard = (x,y,size,hex,rule) =>{
-    ctx.fillStyle = hex; ctx.fillRect(x, y, size, size);
-    ctx.fillStyle = '#0f172a88'; ctx.fillRect(x, y+size-42, size, 42);
-    ctx.fillStyle = '#e2e8f0'; ctx.font='bold 18px Inter, sans-serif'; ctx.textAlign='center';
-    ctx.fillText(hex, x+size/2, y+size-18);
-    ctx.fillStyle='#aab4c3'; ctx.font='12px Inter, sans-serif';
-    ctx.fillText(rule, x+size/2, y+size-4);
-  };
-  if(mode==='horizontal'){
-    const size = Math.min(180, Math.floor((w-120)/nodes.length));
-    let x=60, y=100;
-    nodes.forEach(n=>{ drawCard(x,y,size,n.hex,n.derivation.rule); x += size+24; });
-  }
-  else if(mode==='grid'){
-    const cols = 5, size = 160, padX=40, padY=100, gap=24;
-    nodes.forEach((n,i)=>{
-      const col = i%cols, row = Math.floor(i/cols);
-      const x = padX + col*(size+gap);
-      const y = padY + row*(size+gap);
-      drawCard(x,y,size,n.hex,n.derivation.rule);
-    });
-  }
-  else if(mode==='circle'){
-    const cx = w/2, cy = 320, R = 180;
-    nodes.forEach((n,i)=>{
-      const ang = (i/nodes.length)*Math.PI*2 - Math.PI/2;
-      const x = cx + Math.cos(ang)*R - 70;
-      const y = cy + Math.sin(ang)*R - 70;
-      drawCard(x,y,140,n.hex,n.derivation.rule);
-    });
-  }
-  else if(mode==='artist'){
-    const main = nodes[0];
-    drawCard(60,120,320, main.hex, main.derivation.rule);
-    const rest = nodes.slice(1);
-    const cols=4, size=140, startX=450, startY=120, gap=24;
-    rest.forEach((n,i)=>{
-      const col=i%cols, row=Math.floor(i/cols);
-      drawCard(startX+col*(size+gap), startY+row*(size+gap), size, n.hex, n.derivation.rule);
-    });
-  }
-  canvas.toBlob(async (blob)=>{
-    const fileName = `conefla-palette-${Date.now()}.png`;
-    try{
-      if(navigator.canShare && navigator.canShare({ files: [new File([blob],'palette.png',{type:'image/png'})] })){
-        const file = new File([blob], fileName, { type: 'image/png' });
-        await navigator.share({ files: [file], title: 'パレット画像', text: 'コネフラで生成' });
-        showNotification('共有シートを開きました','success');
-      }else{
-        const url = URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download=fileName; a.click();
-        URL.revokeObjectURL(url);
-        showNotification('PNG画像を保存しました（ファイルアプリ等から写真へ）','success');
-      }
-    }catch(e){
-      console.error(e);
-      showNotification('保存/共有に失敗しました','error');
+// ======================
+// Color Generation Rules
+// ======================
+function deriveAnalogous(baseNode, delta = 30) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let offset of [-delta, delta]) {
+        const newH = (hsl.h + offset + 360) % 360;
+        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'analogous', { delta: offset }));
     }
-  },'image/png');
-}
-function exportCode(){
-  const fmt = (document.querySelector('input[name="codeFormat"]:checked')||{}).value || 'css';
-  const nodes = adoptedOrAll(); if(!nodes.length){ showNotification('出力対象がありません','warning'); return; }
-  let content='';
-  if(fmt==='css'){
-    content = `:root{\n` + nodes.map((n,i)=>`  --color-${n.derivation.rule}${i+1}: ${n.hex};`).join('\n') + `\n}\n`;
-  }else if(fmt==='scss'){
-    content = nodes.map((n,i)=>`$color-${n.derivation.rule}${i+1}: ${n.hex};`).join('\n')+'\n';
-  }else{
-    const json = nodes.map(n=>({rule:n.derivation.rule, hex:n.hex, rgb:n.rgb, hsl:n.hsl}));
-    content = JSON.stringify({version:treeState.version, colors: json}, null, 2);
-  }
-  const blob = new Blob([content], {type: fmt==='json'?'application/json':'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download = `conefla-colors-${fmt}-${Date.now()}.${fmt==="json"?"json":fmt}`;
-  a.click(); URL.revokeObjectURL(url);
-  showNotification('コードを書き出しました','success');
+    return results;
 }
 
-// =============================
-// 通知 & 保存
-// =============================
-function showNotification(msg,type='success'){
-  const el=document.getElementById('notification');
-  el.textContent = msg; el.className=`notification ${type}`; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'), 4000);
+function deriveComplementary(baseNode) {
+    const hsl = baseNode.hsl;
+    const newH = (hsl.h + 180) % 360;
+    const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+    const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+    return [createColorNode(newHex, baseNode.id, 'complementary', {})];
 }
-function saveToLocalStorage(){
-  try{
-    localStorage.setItem('conefla-state', JSON.stringify(treeState));
-  }catch(e){
-    console.error('localStorage save failed:', e);
-  }
+
+function deriveSplitComplementary(baseNode, delta = 30) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let offset of [180 - delta, 180 + delta]) {
+        const newH = (hsl.h + offset + 360) % 360;
+        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'split', { offset }));
+    }
+    return results;
 }
-function loadFromLocalStorage(){
-  try{
-    const s = localStorage.getItem('conefla-state');
-    if(!s) return;
-    const data=JSON.parse(s);
-    treeState={...treeState, ...data};
-    if(!treeState.history) treeState.history=[];
-    updateHistoryUI();
+
+function deriveTriad(baseNode) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let offset of [120, 240]) {
+        const newH = (hsl.h + offset) % 360;
+        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'triad', { offset }));
+    }
+    return results;
+}
+
+function deriveTetrad(baseNode) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let offset of [90, 180, 270]) {
+        const newH = (hsl.h + offset) % 360;
+        const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'tetrad', { offset }));
+    }
+    return results;
+}
+
+function deriveTint(baseNode, step = 0.15) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let i = 1; i <= 3; i++) {
+        const newL = Math.min(95, hsl.l + (step * 100 * i));
+        const newRgb = hslToRgb(hsl.h, Math.max(10, hsl.s - 5 * i), newL);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'tint', { step: i }));
+    }
+    return results;
+}
+
+function deriveShade(baseNode, step = 0.15) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let i = 1; i <= 3; i++) {
+        const newL = Math.max(5, hsl.l - (step * 100 * i));
+        const newRgb = hslToRgb(hsl.h, Math.min(100, hsl.s + 3 * i), newL);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'shade', { step: i }));
+    }
+    return results;
+}
+
+function deriveTone(baseNode, step = 0.2) {
+    const hsl = baseNode.hsl;
+    const results = [];
+    for (let i = 1; i <= 3; i++) {
+        const newS = Math.max(5, hsl.s - (step * 100 * i));
+        const newRgb = hslToRgb(hsl.h, newS, hsl.l);
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        results.push(createColorNode(newHex, baseNode.id, 'tone', { step: i }));
+    }
+    return results;
+}
+
+// ======================
+// Node Management
+// ======================
+function createColorNode(hex, parentId = null, rule = 'root', params = {}) {
+    const id = 'n' + Date.now() + Math.random().toString(36).substr(2, 9);
+    const rgb = hexToRgb(hex);
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const parentNode = parentId ? treeState.nodes[parentId] : null;
+    const depth = parentNode ? parentNode.depth + 1 : 0;
+
+    return {
+        id,
+        parentId,
+        hex: hex.toUpperCase(),
+        rgb,
+        hsl,
+        derivation: { rule, params },
+        state: 'pending',
+        depth,
+        createdAt: Date.now()
+    };
+}
+// ======================
+// History & Stats
+// ======================
+function addNode(node) {
+    treeState.nodes[node.id] = node;
+    if (node.parentId) {
+        treeState.edges.push({ from: node.parentId, to: node.id });
+    }
+    addToHistory(node.hex, node.derivation.rule);
     updateStats();
-  }catch(e){
-    console.error('localStorage load failed:', e);
-  }
 }
 
-// =============================
-// 初期化
-// =============================
-function initialize(){
-  const picker=document.getElementById('colorPicker');
-  const input=document.getElementById('hexInput');
-  if(picker && input) {
-    picker.addEventListener('change', e=>{
-      input.value = e.target.value.toUpperCase();
-    });
-    input.addEventListener('input', e=>{
-      let v=e.target.value.toUpperCase();
-      if(v.length===6 && !v.startsWith('#')) v='#'+v;
-      if(/^#[0-9A-F]{6}$/i.test(v)) picker.value=v;
-    });
-  }
-  loadFromLocalStorage();
-  const defaultColor='#4ECDC4';
-  if(!Object.keys(treeState.nodes).length){
-    if(input) input.value=defaultColor;
-    if(picker) picker.value=defaultColor;
+function addToHistory(hex, rule) {
+    const historyItem = {
+        hex: hex.toUpperCase(),
+        rule,
+        timestamp: Date.now()
+    };
+    treeState.history.unshift(historyItem);
+    if (treeState.history.length > 20) {
+        treeState.history = treeState.history.slice(0, 20);
+    }
+    updateHistoryUI();
+    saveToLocalStorage();
+}
+
+function updateHistoryUI() {
+    const historyContainer = document.getElementById('colorHistory');
+    if (!historyContainer) return;
+
+    if (treeState.history.length === 0) {
+        historyContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>';
+        return;
+    }
+
+    historyContainer.innerHTML = treeState.history.slice(0, 10).map(item => `
+        <div class="history-item" onclick="applyHistoryColor('${item.hex}')">
+            <div class="history-color" style="background-color: ${item.hex}"></div>
+            <div class="history-info">
+                <div class="history-hex">${item.hex}</div>
+                <div class="history-time">${formatTime(item.timestamp)} - ${item.rule}</div>
+            </div>
+        </div>
+    `).join('');
+
+    // クリアボタン（HTMLに <button class="clear-history-btn" id="clearHistoryBtn"> を置いてない場合は動的に付与）
+    if (!document.getElementById('clearHistoryBtn')) {
+        const btn = document.createElement('button');
+        btn.id = 'clearHistoryBtn';
+        btn.className = 'clear-history-btn';
+        btn.textContent = '履歴をクリア';
+        btn.addEventListener('click', clearHistory);
+        historyContainer.parentElement.appendChild(btn);
+    }
+}
+
+function clearHistory() {
+    treeState.history = [];
+    updateHistoryUI();
+    saveToLocalStorage();
+    showNotification('履歴をクリアしました', 'info');
+}
+
+function applyHistoryColor(hex) {
+    const hexInput = document.getElementById('hexInput');
+    const colorPicker = document.getElementById('colorPicker');
+    if (hexInput) hexInput.value = hex;
+    if (colorPicker) colorPicker.value = hex;
     setRootColor();
-  }else{
+}
+
+function formatTime(timestamp) {
+    return new Date(timestamp).toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function updateStats() {
+    const totalNodes = Object.keys(treeState.nodes).length;
+    const adoptedNodes = Object.values(treeState.nodes).filter(n => n.state === 'adopted').length;
+    const totalEl = document.getElementById('totalNodes');
+    const adoptedEl = document.getElementById('adoptedNodes');
+    if (totalEl) totalEl.textContent = totalNodes;
+    if (adoptedEl) adoptedEl.textContent = adoptedNodes;
+}
+
+// ======================
+// Root & Branching UI
+// ======================
+function setRootColor() {
+    const hexInput = document.getElementById('hexInput');
+    if (!hexInput) return;
+    const hex = hexInput.value;
+
+    if (!/^#?[0-9A-F]{6}$/i.test(hex)) {
+        showNotification('無効なHEX形式です', 'error');
+        return;
+    }
+
+    const normalizedHex = hex.startsWith('#') ? hex : '#' + hex;
+
+    treeState.nodes = {};
+    treeState.edges = [];
+    treeState.selectedNodeId = null;
+
+    const rootNode = createColorNode(normalizedHex);
+    rootNode.state = 'adopted';
+    addNode(rootNode);
+    treeState.rootId = rootNode.id;
+
+    renderTree();
+    selectNode(rootNode.id);
+    showNotification('起点色に設定しました', 'success');
+}
+
+function generateBranch(type) {
+    // 押下フィードバック（inline onclickでも document.activeElement で拾える）
+    const pressed = document.activeElement;
+    if (pressed && pressed.classList.contains('btn')) {
+        pressed.classList.add('btn-pressed');
+        setTimeout(() => pressed.classList.remove('btn-pressed'), 180);
+    }
+
+    const selectedId = treeState.selectedNodeId;
+    if (!selectedId) {
+        showNotification('色のノードを選択してから分岐を生成してください', 'warning');
+        return;
+    }
+
+    const baseNode = treeState.nodes[selectedId];
+    if (baseNode.depth >= treeState.maxDepth) {
+        showNotification(`最大深度${treeState.maxDepth}に達しています`, 'warning');
+        return;
+    }
+
+    let newNodes = [];
+    switch (type) {
+        case 'analogous': newNodes = deriveAnalogous(baseNode); break;
+        case 'complementary': newNodes = deriveComplementary(baseNode); break;
+        case 'split': newNodes = deriveSplitComplementary(baseNode); break;
+        case 'triad': newNodes = deriveTriad(baseNode); break;
+        case 'tetrad': newNodes = deriveTetrad(baseNode); break;
+        case 'tint': newNodes = deriveTint(baseNode); break;
+        case 'shade': newNodes = deriveShade(baseNode); break;
+        case 'tone': newNodes = deriveTone(baseNode); break;
+        default: return;
+    }
+
+    newNodes.forEach(addNode);
+    renderTree();
+
+    const typeNames = {
+        analogous: '近似色',
+        complementary: '補色',
+        split: '分割補色',
+        triad: 'トライアド',
+        tetrad: 'テトラード',
+        tint: '明色',
+        shade: '暗色',
+        tone: '純色'
+    };
+    showNotification(`${baseNode.hex}から${typeNames[type]}を生成しました`, 'success');
+}
+
+// ======================
+// Selection State
+// ======================
+function setNodeState(state) {
+    if (!treeState.selectedNodeId) return;
+    treeState.nodes[treeState.selectedNodeId].state = state;
     renderTree();
     updateSelectedNodeInfo();
-  }
-  const depth=document.getElementById('maxDepth');
-  const depthValue=document.getElementById('maxDepthValue');
-  if(depth && depthValue) {
-    depth.value = treeState.maxDepth;
-    depthValue.textContent = treeState.maxDepth;
-    depth.addEventListener('input', e=>{
-      treeState.maxDepth = parseInt(e.target.value,10);
-      depthValue.textContent = e.target.value;
-      saveToLocalStorage();
-    });
-  }
-  const zoomSlider = document.getElementById('zoomSlider');
-  if(zoomSlider) {
-    zoomSlider.value = treeState.viewport.scale;
-    zoomSlider.addEventListener('input', e=>{
-      setZoom(parseFloat(e.target.value));
-    });
-  }
-  const svg = document.getElementById('treeSvg');
-  if(svg) {
-    svg.addEventListener('click', e=>{
-      if(e.target === svg.node()) {
-        treeState.selectedNodeId = null;
-        updateSelectedNodeInfo();
-        renderTree();
-      }
-    });
-  }
-  updateBranchButtonsState(false);
-  showNotification('コネフラへようこそ！','info');
+    updateStats();
+    saveToLocalStorage();
+
+    const stateNames = { adopted: '採用', pending: '保留', rejected: '破棄' };
+    showNotification(`色を${stateNames[state]}しました`, 'info');
 }
+
+function selectNode(nodeId) {
+    treeState.selectedNodeId = nodeId;
+
+    document.querySelectorAll('.color-node').forEach(node => {
+        node.classList.remove('selected');
+    });
+    const selectedElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+    if (selectedElement) {
+        selectedElement.classList.add('selected');
+    }
+    updateSelectedNodeInfo();
+}
+
+function updateSelectedNodeInfo() {
+    const nodeId = treeState.selectedNodeId;
+    const currentSelectionArea = document.getElementById('currentSelectionArea');
+    const selectionHint = document.getElementById('selectionHint');
+    const branchButtons = document.querySelectorAll('.btn-group .btn');
+
+    if (!nodeId || !treeState.nodes[nodeId]) {
+        if (currentSelectionArea) currentSelectionArea.classList.remove('show');
+        if (selectionHint) selectionHint.style.display = 'block';
+        branchButtons.forEach(btn => btn.disabled = true);
+        return;
+    }
+
+    if (currentSelectionArea) currentSelectionArea.classList.add('show');
+    if (selectionHint) selectionHint.style.display = 'none';
+    branchButtons.forEach(btn => btn.disabled = false);
+
+    const node = treeState.nodes[nodeId];
+    const selDisp = document.getElementById('selectedNodeDisplay');
+    const selHex = document.getElementById('selectedNodeHex');
+    if (selDisp) selDisp.textContent = node.derivation.rule;
+    if (selHex) selHex.textContent = node.hex;
+
+    const ph = document.getElementById('popup-hex');
+    const pr = document.getElementById('popup-rgb');
+    const ps = document.getElementById('popup-hsl');
+    const pv = document.getElementById('popup-css-var');
+
+    if (ph) ph.textContent = node.hex;
+    if (pr) pr.textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
+    if (ps) ps.textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
+    if (pv) pv.textContent = `--color-${node.derivation.rule}: ${node.hex}`;
+
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`.state-btn.${node.state}`);
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+// ======================
+// Layout & Rendering
+// ======================
+function renderTree() {
+    const svg = document.getElementById('treeSvg');
+    if (!svg) return;
+
+    // クリア
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const positions = calculateNodePositions();
+
+    // ---- SVGのサイズを内容に合わせて可変 ----
+    const coords = Object.values(positions);
+    if (coords.length > 0) {
+        const pad = 200;
+        const maxX = Math.max(...coords.map(p => p.x)) + pad;
+        const minX = Math.min(...coords.map(p => p.x)) - pad;
+        const maxY = Math.max(...coords.map(p => p.y)) + pad;
+        const minY = Math.min(...coords.map(p => p.y)) - pad;
+
+        svg.setAttribute('width', maxX - minX);
+        svg.setAttribute('height', maxY - minY);
+        svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+    }
+
+    // ---- エッジ ----
+    treeState.edges.forEach(edge => {
+        const fromPos = positions[edge.from];
+        const toPos   = positions[edge.to];
+        if (!fromPos || !toPos) return;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'connection-line');
+        line.setAttribute('x1', fromPos.x);
+        line.setAttribute('y1', fromPos.y);
+        line.setAttribute('x2', toPos.x);
+        line.setAttribute('y2', toPos.y);
+        svg.appendChild(line);
+    });
+
+    // ---- ノード ----
+    Object.values(treeState.nodes).forEach(node => {
+        const pos = positions[node.id];
+        if (!pos) return;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', `color-node ${node.state}`);
+        g.setAttribute('data-node-id', node.id);
+        g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+        // 選択時グロー
+        if (treeState.selectedNodeId === node.id) {
+            const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            glow.setAttribute('r', node.depth === 0 ? 38 : 33);
+            glow.setAttribute('fill', 'none');
+            glow.setAttribute('stroke', 'var(--accent-color)');
+            glow.setAttribute('stroke-width', '3');
+            glow.setAttribute('opacity', '0.6');
+            g.appendChild(glow);
+        }
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', node.depth === 0 ? 32 : 28);
+        circle.setAttribute('fill', node.hex);
+        circle.setAttribute('class', `node-circle ${node.state}`);
+        g.appendChild(circle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', 'node-text');
+        text.setAttribute('y', node.depth === 0 ? 46 : 42);
+        text.setAttribute('font-size', '11');
+        text.setAttribute('font-weight', 'bold');
+        text.textContent = node.hex;
+        g.appendChild(text);
+
+        if (node.derivation.rule !== 'root') {
+            const ruleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ruleText.setAttribute('class', 'node-text');
+            ruleText.setAttribute('y', node.depth === 0 ? 60 : 56);
+            ruleText.setAttribute('font-size', '9');
+            ruleText.setAttribute('opacity', '0.8');
+            ruleText.textContent = node.derivation.rule;
+            g.appendChild(ruleText);
+        }
+
+        g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectNode(node.id);
+        });
+
+        g.addEventListener('touchend', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            selectNode(node.id);
+        });
+
+        svg.appendChild(g);
+    });
+
+    updateViewport(); // 現在のズーム状態を適用
+}
+
+function calculateNodePositions() {
+    const positions = {};
+    if (!treeState.rootId) return positions;
+
+    const H = 200;  // 横間隔
+    const V = 160;  // 縦間隔
+
+    positions[treeState.rootId] = { x: 0, y: 0 };
+
+    function dfs(parentId, px, py) {
+        const children = Object.values(treeState.nodes).filter(n => n.parentId === parentId);
+        const n = children.length;
+        if (n === 0) return;
+
+        const childY = py + V;
+        const totalW = (n - 1) * H;
+        const startX = px - totalW / 2;
+
+        children.forEach((node, i) => {
+            const cx = startX + i * H;
+            positions[node.id] = { x: cx, y: childY };
+            dfs(node.id, cx, childY);
+        });
+    }
+
+    dfs(treeState.rootId, 0, 0);
+    return positions;
+}
+// ======================
+// Viewport & Zoom Control
+// ======================
+function centerView() {
+    treeState.viewport.x = 0;
+    treeState.viewport.y = 0;
+    treeState.viewport.scale = 1;
+    updateViewport();
+}
+
+function updateViewport() {
+    const svg = document.getElementById('treeSvg');
+    if (!svg) return;
+    svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`;
+
+    const zoomSlider = document.getElementById('zoomSlider');
+    if (zoomSlider) {
+        zoomSlider.value = treeState.viewport.scale;
+    }
+}
+
+function zoomIn() {
+    treeState.viewport.scale = Math.min(treeState.viewport.scale + 0.1, 3);
+    updateViewport();
+}
+
+function zoomOut() {
+    treeState.viewport.scale = Math.max(treeState.viewport.scale - 0.1, 0.5);
+    updateViewport();
+}
+
+function setZoom(value) {
+    treeState.viewport.scale = Math.min(Math.max(parseFloat(value), 0.5), 3);
+    updateViewport();
+}
+
+// ======================
+// Data Management
+// ======================
+function clearTree() {
+    if (Object.keys(treeState.nodes).length === 0) {
+        showNotification('クリアする内容がありません', 'info');
+        return;
+    }
+    if (confirm('全ての色データを削除しますか？')) {
+        treeState.nodes = {};
+        treeState.edges = [];
+        treeState.rootId = null;
+        treeState.selectedNodeId = null;
+        renderTree();
+        updateSelectedNodeInfo();
+        updateStats();
+        saveToLocalStorage();
+        showNotification('全てのデータをクリアしました', 'success');
+    }
+}
+
+function saveToJSON() {
+    const dataStr = JSON.stringify(treeState, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `conefla-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+    showNotification('JSONファイルを保存しました', 'success');
+}
+
+function loadFromJSON() {
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) fileInput.click();
+}
+
+function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            treeState = { ...treeState, ...data };
+            if (!treeState.history) treeState.history = [];
+            renderTree();
+            updateSelectedNodeInfo();
+            updateHistoryUI();
+            updateStats();
+            showNotification('JSONファイルを読み込みました', 'success');
+        } catch (error) {
+            console.error(error);
+            showNotification('ファイルの読み込みに失敗しました', 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ======================
+// Export as Image (Card Style)
+// ======================
+function exportPalette() {
+    if (treeState.history.length === 0) {
+        showNotification('履歴に色がありません', 'warning');
+        return;
+    }
+    generatePaletteImage(treeState.history, 'conefla-history');
+}
+
+function generatePaletteImage(nodes, filename) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const cardWidth = 240;
+    const cardHeight = 120;
+    const padding = 20;
+    const cols = 2;
+    const rows = Math.ceil(nodes.length / cols);
+
+    canvas.width = cols * (cardWidth + padding) + padding;
+    canvas.height = rows * (cardHeight + padding) + padding + 60;
+
+    // background
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // title
+    ctx.fillStyle = '#4ecdc4';
+    ctx.font = 'bold 28px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('コネフラ - 探索履歴パレット', canvas.width / 2, 40);
+
+    nodes.forEach((item, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = padding + col * (cardWidth + padding);
+        const y = 60 + padding + row * (cardHeight + padding);
+
+        // card bg
+        ctx.fillStyle = '#1f1f1f';
+        ctx.fillRect(x, y, cardWidth, cardHeight);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(x, y, cardWidth, cardHeight);
+
+        // color rect
+        ctx.fillStyle = item.hex;
+        ctx.fillRect(x + 10, y + 10, cardWidth - 20, 50);
+
+        // labels
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(item.hex, x + 12, y + 80);
+
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText(item.rule, x + 12, y + 100);
+
+        ctx.fillStyle = '#888';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText(formatTime(item.timestamp), x + 120, y + 100);
+    });
+
+    canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filename}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('パレット画像を保存しました', 'success');
+    }, 'image/png');
+}
+
+// ======================
+// Clipboard
+// ======================
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('クリップボードにコピーしました', 'success');
+    }).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('クリップボードにコピーしました', 'success');
+    });
+}
+
+// ======================
+// Notification
+// ======================
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    if (!notification) return;
+    notification.textContent = message;
+    notification.className = `notification ${type} show`;
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// ======================
+// Local Storage
+// ======================
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('conefla-state', JSON.stringify(treeState));
+    } catch (err) {
+        console.warn('Save failed:', err);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('conefla-state');
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.version >= 2) {
+                treeState = { ...treeState, ...data };
+                if (!treeState.history) treeState.history = [];
+                updateHistoryUI();
+                updateStats();
+                if (Object.keys(treeState.nodes).length > 0) {
+                    renderTree();
+                    updateSelectedNodeInfo();
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Load failed:', err);
+    }
+}
+
+// ======================
+// Initialization
+// ======================
+function setupEventListeners() {
+    const colorPicker = document.getElementById('colorPicker');
+    const hexInput = document.getElementById('hexInput');
+    const maxDepth = document.getElementById('maxDepth');
+    const zoomSlider = document.getElementById('zoomSlider');
+
+    if (colorPicker && hexInput) {
+        colorPicker.addEventListener('change', e => {
+            hexInput.value = e.target.value.toUpperCase();
+        });
+        hexInput.addEventListener('input', e => {
+            let val = e.target.value.toUpperCase();
+            if (val.length === 6 && !val.startsWith('#')) val = '#' + val;
+            if (/^#[0-9A-F]{6}$/.test(val)) colorPicker.value = val;
+        });
+    }
+
+    if (maxDepth) {
+        maxDepth.addEventListener('input', e => {
+            treeState.maxDepth = parseInt(e.target.value);
+            const disp = document.getElementById('maxDepthValue');
+            if (disp) disp.textContent = e.target.value;
+            saveToLocalStorage();
+        });
+    }
+
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', e => setZoom(e.target.value));
+    }
+}
+
+function initialize() {
+    try {
+        setupEventListeners();
+        loadFromLocalStorage();
+
+        const defaultColor = '#4ECDC4';
+        const hexInput = document.getElementById('hexInput');
+        const colorPicker = document.getElementById('colorPicker');
+        if (hexInput) hexInput.value = defaultColor;
+        if (colorPicker) colorPicker.value = defaultColor;
+
+        if (Object.keys(treeState.nodes).length === 0) {
+            setRootColor();
+        } else {
+            renderTree();
+            updateSelectedNodeInfo();
+        }
+        centerView();
+        showNotification('コネフラへようこそ！', 'info');
+    } catch (err) {
+        console.error('Init error:', err);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', initialize);
-window.addEventListener('beforeunload', saveToLocalStorage);
-window.addEventListener('error', function(e) {
-  console.error('Global error:', e.error);
-  showNotification('予期しないエラーが発生しました', 'error');
-});
-window.addEventListener('unhandledrejection', function(e) {
-  console.error('Unhandled promise rejection:', e.reason);
-  showNotification('処理中にエラーが発生しました', 'error');
-});
+setInterval(saveToLocalStorage, 30000);
