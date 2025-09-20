@@ -23,7 +23,7 @@ html, body {
     font-family: 'Inter', sans-serif;
     color: var(--text-primary);
     background-color: var(--bg-primary);
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 body {
@@ -31,55 +31,7 @@ body {
     grid-template-columns: 320px 1fr;
 }
 
-/* ===================== */
-/* モバイルレイアウト    */
-/* ===================== */
-@media (max-width: 768px) {
-    body {
-        display: block; /* 縦並びに切り替え */
-        overflow-y: auto;
-    }
-
-    .control-panel {
-        display: contents; /* 内部の top/bottom-controls だけを使う */
-    }
-
-    .top-controls {
-        padding: 16px;
-        border-bottom: 1px solid var(--border-color);
-        background-color: var(--bg-dark);
-    }
-
-    .canvas-area {
-        width: 100%;
-        height: auto;
-        min-height: 50vh; /* ツリー領域は可変だが最低限確保 */
-        background-color: var(--bg-primary);
-    }
-
-    .bottom-controls {
-        padding: 16px;
-        border-top: 1px solid var(--border-color);
-        background-color: var(--bg-dark);
-    }
-
-    .header h1 {
-        font-size: 1.4rem;
-    }
-
-    .section {
-        padding: 16px 0;
-    }
-
-    .btn-group .btn {
-        font-size: 0.8rem;
-        padding: 8px;
-    }
-}
-
-/* ===================== */
-/* 共通デザイン          */
-/* ===================== */
+/* PCデフォルト */
 .app-container {
     height: 100%;
     display: grid;
@@ -435,7 +387,7 @@ body {
         gap: 4px;
         padding: 4px;
     }
-
+    
     .canvas-tool-btn {
         width: 32px;
         height: 32px;
@@ -543,4 +495,29 @@ body {
 .notification.info {
     background-color: #3498db;
     color: white;
+}
+
+/* ============================ */
+/* スマホ・タブレット (iPad含む) */
+/* ============================ */
+@media (max-width: 1024px) {
+    body {
+        display: block; /* 縦並びにする */
+    }
+
+    .control-panel {
+        display: contents; /* top-controls, bottom-controls を直に並べる */
+    }
+
+    .canvas-container {
+        overflow: visible;   /* ノードを切らない */
+        min-height: 60vh;    /* ある程度高さを確保 */
+    }
+
+    .tree-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        transform: none !important; /* transform座標変換を無効化 */
+    }
 }
