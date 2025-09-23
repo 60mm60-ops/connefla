@@ -5,155 +5,1620 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>コネフラ - カラーパレット生成ツール</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-dark: #0a0a0a;
+            --bg-hover: #1f1f1f;
+            --border-color: #333;
+            --text-primary: #e0e0e0;
+            --text-muted: #888;
+            --accent-color: #4ecdc4;
+            --accent-hover: #67e8df;
+            --color-adopted: #4ecdc4;
+            --color-pending: #f1c40f;
+            --color-rejected: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        /* ---------- PC向け2カラムレイアウト ---------- */
+        .app-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            height: 100vh;
+        }
+
+        .control-panel {
+            background-color: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .canvas-area {
+            position: relative;
+            background-color: var(--bg-primary);
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ---------- モバイル向けレイアウト ---------- */
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .control-panel {
+                height: 50vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .canvas-area {
+                height: 50vh;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .control-panel {
+                height: 40vh;
+            }
+            
+            .canvas-area {
+                height: 60vh;
+            }
+        }
+
+        /* ---------- 共通 ---------- */
+        .section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ---------- ヘッダー ---------- */
+        .header {
+            text-align: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .header p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 99px;
+        }
+
+        /* ---------- 入力エリア ---------- */
+        .color-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            padding: 0;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .hex-input {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        /* ---------- ボタン ---------- */
+        .btn {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: #0a0a0a;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #444;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-pressed {
+            background-color: var(--accent-hover) !important;
+            transform: scale(0.95);
+        }
+
+        /* ---------- ボタン群 ---------- */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .btn-group .btn {
+            font-size: 0.8rem;
+            padding: 8px 12px;
+        }
+
+        /* ---------- 選択中の色 ---------- */
+        .selection-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 8px 0;
+        }
+
+        .current-selection-area {
+            display: none;
+        }
+
+        .current-selection-area.show {
+            display: block;
+        }
+
+        .current-selection-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            padding: 10px;
+            background-color: var(--bg-primary);
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .current-selection-info .hex-code {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .node-details {
+            display: grid;
+            gap: 6px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background-color: var(--bg-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .detail-row:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .detail-label {
+            color: var(--text-muted);
+        }
+
+        /* ---------- ステートボタン ---------- */
+        .state-buttons {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .state-btn {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .state-btn.adopted { color: var(--color-adopted); border-color: var(--color-adopted); }
+        .state-btn.pending { color: var(--color-pending); border-color: var(--color-pending); }
+        .state-btn.rejected { color: var(--color-rejected); border-color: var(--color-rejected); }
+
+        .state-btn.adopted.active { background-color: var(--color-adopted); color: black; }
+        .state-btn.pending.active { background-color: var(--color-pending); color: black; }
+        .state-btn.rejected.active { background-color: var(--color-rejected); color: white; }
+
+        .state-btn:hover:not(.active) { background-color: var(--bg-hover); }
+
+        /* ---------- 統計 ---------- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-primary);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* ---------- 履歴 ---------- */
+        #colorHistory {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px;
+            background-color: var(--bg-primary);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .history-item:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .history-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .history-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .history-hex {
+            font-size: 0.8rem;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .history-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .clear-history-btn {
+            margin-top: 8px;
+            padding: 6px;
+            width: 100%;
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .clear-history-btn:hover {
+            background: #444;
+        }
+
+        /* ---------- スライダー ---------- */
+        .slider-group {
+            margin-bottom: 12px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: var(--border-color);
+            outline: none;
+            border-radius: 2px;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            font-weight: bold;
+            width: 20px;
+            text-align: right;
+            font-size: 0.85rem;
+        }
+
+        /* ---------- キャンバスエリア ---------- */
+        .canvas-tools {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .canvas-tool-btn {
+            background-color: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .canvas-tool-btn:hover {
+            background-color: var(--border-color);
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: hidden;
+            cursor: grab;
+            position: relative;
+        }
+
+        .canvas-container.dragging {
+            cursor: grabbing;
+        }
+
+        .tree-svg {
+            width: 100%;
+            height: 100%;
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .connection-line {
+            stroke: var(--border-color);
+            stroke-width: 2px;
+        }
+
+        .color-node {
+            cursor: pointer;
+            transition: transform 0.2s ease-out;
+        }
+
+        .color-node:hover {
+            transform: scale(1.05);
+        }
+
+        .node-circle.adopted {
+            stroke: var(--color-adopted);
+            stroke-width: 3px;
+            filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.7));
+        }
+
+        .node-circle.pending {
+            stroke: var(--color-pending);
+            stroke-width: 1px;
+        }
+
+        .node-circle.rejected {
+            stroke: var(--color-rejected);
+            stroke-width: 2px;
+        }
+
+        .color-node.selected .node-circle {
+            stroke: var(--accent-color);
+            stroke-width: 4px;
+        }
+
+        .node-text {
+            fill: var(--text-primary);
+            text-anchor: middle;
+            user-select: none;
+            pointer-events: none;
+            font-size: 11px;
+        }
+
+        /* ---------- 通知 ---------- */
+        .notification {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            transition: bottom 0.3s ease-out;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .notification.show {
+            bottom: 24px;
+        }
+
+        .notification.success {
+            background-color: var(--accent-color);
+            color: black;
+        }
+
+        .notification.warning {
+            background-color: var(--color-pending);
+            color: black;
+        }
+
+        .notification.error {
+            background-color: var(--color-rejected);
+            color: white;
+        }
+
+        .notification.info {
+            background-color: #3498db;
+            color: white;
+        }
+
+        /* ---------- スクロールバー ---------- */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
         <div class="control-panel">
-            <!-- ==================== -->
-            <!-- 上部メニュー (top-controls) -->
-            <!-- ==================== -->
-            <div class="top-controls">
-                <div class="header">
-                    <h1>コネフラ</h1>
-                    <p>カラーパレット生成ツール</p>
-                    <div class="version-badge">v3.0</div>
+            <div class="header">
+                <h1>コネフラ</h1>
+                <p>カラーパレット生成ツール</p>
+                <div class="version-badge">v3.2</div>
+            </div>
+
+            <div class="section">
+                <h3>🎨 基本色設定</h3>
+                <div class="color-input-group">
+                    <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
+                    <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
                 </div>
+                <button class="btn" onclick="setRootColor()">起点色に設定</button>
+            </div>
 
-                <div class="section">
-                    <h3>🎨 基本色設定</h3>
-                    <div class="color-input-group">
-                        <input type="color" id="colorPicker" class="color-picker" value="#4ECDC4">
-                        <input type="text" id="hexInput" class="hex-input" placeholder="#4ECDC4" maxlength="7">
-                    </div>
-                    <button class="btn" onclick="setRootColor()">起点色に設定</button>
+            <div class="section">
+                <h3>🎯 選択中の色</h3>
+                <div id="selectionHint" class="selection-hint">
+                    色のノードをクリックして選択してください
                 </div>
-
-                <div class="section">
-                    <h3>🎯 選択中の色</h3>
-                    <div id="selectionHint" class="selection-hint">
-                        色のノードをクリックして選択してください
+                <div id="currentSelectionArea" class="current-selection-area">
+                    <div id="currentSelectionInfo" class="current-selection-info">
+                        <span id="selectedNodeDisplay">root</span>
+                        <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
                     </div>
-                    <div id="currentSelectionArea" class="current-selection-area">
-                        <div id="currentSelectionInfo" class="current-selection-info">
-                            <span id="selectedNodeDisplay">root</span>
-                            <span id="selectedNodeHex" class="hex-code">#4ECDC4</span>
-                        </div>
 
-                        <div class="node-details">
-                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
-                                <span class="detail-label">HEX</span>
-                                <span id="popup-hex"></span>
-                            </div>
-                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
-                                <span class="detail-label">RGB</span>
-                                <span id="popup-rgb"></span>
-                            </div>
-                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
-                                <span class="detail-label">HSL</span>
-                                <span id="popup-hsl"></span>
-                            </div>
-                            <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
-                                <span class="detail-label">CSS VAR</span>
-                                <span id="popup-css-var"></span>
-                            </div>
+                    <div class="node-details">
+                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hex').textContent)">
+                            <span class="detail-label">HEX</span>
+                            <span id="popup-hex"></span>
                         </div>
-
-                        <div class="state-buttons">
-                            <button class="state-btn adopted" onclick="setNodeState('adopted')">
-                                <span>⭐</span> 採用
-                            </button>
-                            <button class="state-btn pending" onclick="setNodeState('pending')">
-                                <span>⏸️</span> 保留
-                            </button>
-                            <button class="state-btn rejected" onclick="setNodeState('rejected')">
-                                <span>❌</span> 破棄
-                            </button>
+                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-rgb').textContent)">
+                            <span class="detail-label">RGB</span>
+                            <span id="popup-rgb"></span>
+                        </div>
+                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-hsl').textContent)">
+                            <span class="detail-label">HSL</span>
+                            <span id="popup-hsl"></span>
+                        </div>
+                        <div class="detail-row" onclick="copyToClipboard(document.getElementById('popup-css-var').textContent)">
+                            <span class="detail-label">CSS VAR</span>
+                            <span id="popup-css-var"></span>
                         </div>
                     </div>
-                </div>
 
-                <div class="section">
-                    <h3>🌟 分岐生成</h3>
-                    <div class="btn-group">
-                        <button class="btn btn-secondary" onclick="generateBranch('analogous')" disabled>近似色</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('complementary')" disabled>補色</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('split')" disabled>分割補色</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('triad')" disabled>トライアド</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('tetrad')" disabled>テトラード</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('tint')" disabled>明色</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('shade')" disabled>暗色</button>
-                        <button class="btn btn-secondary" onclick="generateBranch('tone')" disabled>純色</button>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <h3>⚙️ 設定</h3>
-                    <div class="slider-group">
-                        <label>最大深度</label>
-                        <div class="slider-container">
-                            <input type="range" id="maxDepth" class="slider" min="2" max="6" value="3">
-                            <span id="maxDepthValue" class="slider-value">3</span>
-                        </div>
+                    <div class="state-buttons">
+                        <button class="state-btn adopted" onclick="setNodeState('adopted')">
+                            <span>⭐</span> 採用
+                        </button>
+                        <button class="state-btn pending" onclick="setNodeState('pending')">
+                            <span>⏸️</span> 保留
+                        </button>
+                        <button class="state-btn rejected" onclick="setNodeState('rejected')">
+                            <span>❌</span> 破棄
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- ==================== -->
-            <!-- 中央 (ツリーキャンバス) -->
-            <!-- ==================== -->
-            <div class="canvas-area">
-                <div class="canvas-tools">
-                    <button class="canvas-tool-btn" onclick="centerView()" title="中央に配置">📍</button>
-                    <button class="canvas-tool-btn" onclick="fitToView()" title="全体表示">🔍</button>
-                    <button class="canvas-tool-btn" onclick="resetZoom()" title="ズームリセット">🔄</button>
-                </div>
-                <div id="canvasContainer" class="canvas-container">
-                    <svg id="treeSvg" class="tree-svg"></svg>
+            <div class="section">
+                <h3>🌟 分岐生成</h3>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="generateBranch('analogous')" disabled>近似色</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('complementary')" disabled>補色</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('split')" disabled>分割補色</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('triad')" disabled>トライアド</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('tetrad')" disabled>テトラード</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('tint')" disabled>明色</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('shade')" disabled>暗色</button>
+                    <button class="btn btn-secondary" onclick="generateBranch('tone')" disabled>純色</button>
                 </div>
             </div>
 
-            <!-- ==================== -->
-            <!-- 下部メニュー (bottom-controls) -->
-            <!-- ==================== -->
-            <div class="bottom-controls">
-                <div class="section">
-                    <h3>📊 統計</h3>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div id="totalNodes" class="stat-number">0</div>
-                            <div class="stat-label">総色数</div>
-                        </div>
-                        <div class="stat-card">
-                            <div id="adoptedNodes" class="stat-number">0</div>
-                            <div class="stat-label">採用済み</div>
-                        </div>
+            <div class="section">
+                <h3>⚙️ 設定</h3>
+                <div class="slider-group">
+                    <label>最大深度</label>
+                    <div class="slider-container">
+                        <input type="range" id="maxDepth" class="slider" min="2" max="6" value="3">
+                        <span id="maxDepthValue" class="slider-value">3</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="section">
-                    <h3>📅 履歴</h3>
-                    <div id="colorHistory">
-                        <div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>
+            <div class="section">
+                <h3>📊 統計</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div id="totalNodes" class="stat-number">0</div>
+                        <div class="stat-label">総色数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="adoptedNodes" class="stat-number">0</div>
+                        <div class="stat-label">採用済み</div>
                     </div>
                 </div>
+            </div>
 
-                <div class="section">
-                    <h3>💾 データ操作</h3>
-                    <div class="btn-group">
-                        <button class="btn btn-secondary" onclick="saveToJSON()">保存</button>
-                        <button class="btn btn-secondary" onclick="loadFromJSON()">読込</button>
-                        <button class="btn btn-secondary" onclick="exportPalette()">画像出力</button>
-                        <button class="btn btn-secondary" onclick="exportCSS()">CSS出力</button>
-                        <button class="btn btn-secondary" onclick="clearTree()">クリア</button>
-                    </div>
-                    <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)" style="display: none;">
+            <div class="section">
+                <h3>📅 履歴</h3>
+                <div id="colorHistory">
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>
                 </div>
+            </div>
+
+            <div class="section">
+                <h3>💾 データ操作</h3>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="saveToJSON()">保存</button>
+                    <button class="btn btn-secondary" onclick="loadFromJSON()">読込</button>
+                    <button class="btn btn-secondary" onclick="exportPalette()">画像出力</button>
+                    <button class="btn btn-secondary" onclick="exportCSS()">CSS出力</button>
+                    <button class="btn btn-secondary" onclick="clearTree()">クリア</button>
+                </div>
+                <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)" style="display: none;">
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div class="canvas-tools">
+                <button class="canvas-tool-btn" onclick="centerView()" title="中央に配置">📍</button>
+                <button class="canvas-tool-btn" onclick="fitToView()" title="全体表示">🔍</button>
+                <button class="canvas-tool-btn" onclick="resetZoom()" title="ズームリセット">🔄</button>
+            </div>
+            <div id="canvasContainer" class="canvas-container">
+                <svg id="treeSvg" class="tree-svg"></svg>
             </div>
         </div>
     </div>
 
     <div id="notification" class="notification"></div>
-    <script src="script.js"></script>
+    <script>
+        // ======================
+        // Data Model & State
+        // ======================
+        let treeState = {
+            version: 3.2,
+            rootId: null,
+            nodes: {},
+            edges: [],
+            maxDepth: 3,
+            viewport: { x: 0, y: 0, scale: 1 },
+            selectedNodeId: null,
+            history: [],
+            createdAt: Date.now()
+        };
+
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let viewportStart = { ...treeState.viewport };
+
+        // ======================
+        // Color Conversion
+        // ======================
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function rgbToHex(r, g, b) {
+            const toHex = (c) => {
+                const hex = Math.round(c).toString(16);
+                return hex.length === 1 ? "0" + hex : hex;
+            };
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+
+            return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+        }
+
+        function hslToRgb(h, s, l) {
+            h /= 360; s /= 100; l /= 100;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => {
+                const k = (n + h * 12) % 12;
+                return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            };
+            return {
+                r: Math.round(f(0) * 255),
+                g: Math.round(f(8) * 255),
+                b: Math.round(f(4) * 255)
+            };
+        }
+
+        // ======================
+        // Color Generation Rules
+        // ======================
+        function deriveAnalogous(baseNode, delta = 30) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let offset of [-delta, delta]) {
+                const newH = (hsl.h + offset + 360) % 360;
+                const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'analogous', { delta: offset }));
+            }
+            return results;
+        }
+
+        function deriveComplementary(baseNode) {
+            const hsl = baseNode.hsl;
+            const newH = (hsl.h + 180) % 360;
+            const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+            const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+            return [createColorNode(newHex, baseNode.id, 'complementary', {})];
+        }
+
+        function deriveSplitComplementary(baseNode, delta = 30) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let offset of [180 - delta, 180 + delta]) {
+                const newH = (hsl.h + offset + 360) % 360;
+                const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'split', { offset }));
+            }
+            return results;
+        }
+
+        function deriveTriad(baseNode) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let offset of [120, 240]) {
+                const newH = (hsl.h + offset) % 360;
+                const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'triad', { offset }));
+            }
+            return results;
+        }
+
+        function deriveTetrad(baseNode) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let offset of [90, 180, 270]) {
+                const newH = (hsl.h + offset) % 360;
+                const newRgb = hslToRgb(newH, hsl.s, hsl.l);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'tetrad', { offset }));
+            }
+            return results;
+        }
+
+        function deriveTint(baseNode, step = 0.15) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let i = 1; i <= 3; i++) {
+                const newL = Math.min(95, hsl.l + (step * 100 * i));
+                const newRgb = hslToRgb(hsl.h, Math.max(10, hsl.s - 5 * i), newL);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'tint', { step: i }));
+            }
+            return results;
+        }
+
+        function deriveShade(baseNode, step = 0.15) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let i = 1; i <= 3; i++) {
+                const newL = Math.max(5, hsl.l - (step * 100 * i));
+                const newRgb = hslToRgb(hsl.h, Math.min(100, hsl.s + 3 * i), newL);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'shade', { step: i }));
+            }
+            return results;
+        }
+
+        function deriveTone(baseNode, step = 0.2) {
+            const hsl = baseNode.hsl;
+            const results = [];
+            for (let i = 1; i <= 3; i++) {
+                const newS = Math.max(5, hsl.s - (step * 100 * i));
+                const newRgb = hslToRgb(hsl.h, newS, hsl.l);
+                const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                results.push(createColorNode(newHex, baseNode.id, 'tone', { step: i }));
+            }
+            return results;
+        }
+
+        // ======================
+        // Node Management
+        // ======================
+        function createColorNode(hex, parentId = null, rule = 'root', params = {}) {
+            const id = 'n' + Date.now() + Math.random().toString(36).substr(2, 9);
+            const rgb = hexToRgb(hex);
+            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            const parentNode = parentId ? treeState.nodes[parentId] : null;
+            const depth = parentNode ? parentNode.depth + 1 : 0;
+
+            return {
+                id,
+                parentId,
+                hex: hex.toUpperCase(),
+                rgb,
+                hsl,
+                derivation: { rule, params },
+                state: 'pending',
+                depth,
+                createdAt: Date.now()
+            };
+        }
+
+        // ======================
+        // History & Stats
+        // ======================
+        function addNode(node) {
+            treeState.nodes[node.id] = node;
+            if (node.parentId) {
+                treeState.edges.push({ from: node.parentId, to: node.id });
+            }
+            addToHistory(node.hex, node.derivation.rule);
+            updateStats();
+        }
+
+        function addToHistory(hex, rule) {
+            const historyItem = {
+                hex: hex.toUpperCase(),
+                rule,
+                timestamp: Date.now()
+            };
+            treeState.history.unshift(historyItem);
+            if (treeState.history.length > 20) {
+                treeState.history = treeState.history.slice(0, 20);
+            }
+            updateHistoryUI();
+            saveToLocalStorage();
+        }
+
+        function updateHistoryUI() {
+            const historyContainer = document.getElementById('colorHistory');
+            if (!historyContainer) return;
+
+            if (treeState.history.length === 0) {
+                historyContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">履歴がありません</div>';
+                return;
+            }
+
+            historyContainer.innerHTML = treeState.history.slice(0, 10).map(item => `
+                <div class="history-item" onclick="applyHistoryColor('${item.hex}')">
+                    <div class="history-color" style="background-color: ${item.hex}"></div>
+                    <div class="history-info">
+                        <div class="history-hex">${item.hex}</div>
+                        <div class="history-time">${formatTime(item.timestamp)} - ${item.rule}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            if (!document.getElementById('clearHistoryBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'clearHistoryBtn';
+                btn.className = 'clear-history-btn';
+                btn.textContent = '履歴をクリア';
+                btn.addEventListener('click', clearHistory);
+                historyContainer.parentElement.appendChild(btn);
+            }
+        }
+
+        function clearHistory() {
+            treeState.history = [];
+            updateHistoryUI();
+            saveToLocalStorage();
+            showNotification('履歴をクリアしました', 'info');
+        }
+
+        function applyHistoryColor(hex) {
+            const hexInput = document.getElementById('hexInput');
+            const colorPicker = document.getElementById('colorPicker');
+            if (hexInput) hexInput.value = hex;
+            if (colorPicker) colorPicker.value = hex;
+            setRootColor();
+        }
+
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function updateStats() {
+            const totalNodes = Object.keys(treeState.nodes).length;
+            const adoptedNodes = Object.values(treeState.nodes).filter(n => n.state === 'adopted').length;
+            const totalEl = document.getElementById('totalNodes');
+            const adoptedEl = document.getElementById('adoptedNodes');
+            if (totalEl) totalEl.textContent = totalNodes;
+            if (adoptedEl) adoptedEl.textContent = adoptedNodes;
+        }
+
+        // ======================
+        // Root & Branching UI
+        // ======================
+        function setRootColor() {
+            const hexInput = document.getElementById('hexInput');
+            if (!hexInput) return;
+            const hex = hexInput.value;
+
+            if (!/^#?[0-9A-F]{6}$/i.test(hex)) {
+                showNotification('無効なHEX形式です', 'error');
+                return;
+            }
+
+            const normalizedHex = hex.startsWith('#') ? hex : '#' + hex;
+
+            treeState.nodes = {};
+            treeState.edges = [];
+            treeState.selectedNodeId = null;
+
+            const rootNode = createColorNode(normalizedHex);
+            rootNode.state = 'adopted';
+            addNode(rootNode);
+            treeState.rootId = rootNode.id;
+
+            renderTree();
+            selectNode(rootNode.id);
+            showNotification('起点色に設定しました', 'success');
+        }
+
+        function generateBranch(type) {
+            const pressed = document.activeElement;
+            if (pressed && pressed.classList.contains('btn')) {
+                pressed.classList.add('btn-pressed');
+                setTimeout(() => pressed.classList.remove('btn-pressed'), 180);
+            }
+
+            const selectedId = treeState.selectedNodeId;
+            if (!selectedId) {
+                showNotification('色のノードを選択してから分岐を生成してください', 'warning');
+                return;
+            }
+
+            const baseNode = treeState.nodes[selectedId];
+            if (baseNode.depth >= treeState.maxDepth) {
+                showNotification(`最大深度${treeState.maxDepth}に達しています`, 'warning');
+                return;
+            }
+
+            let newNodes = [];
+            switch (type) {
+                case 'analogous': newNodes = deriveAnalogous(baseNode); break;
+                case 'complementary': newNodes = deriveComplementary(baseNode); break;
+                case 'split': newNodes = deriveSplitComplementary(baseNode); break;
+                case 'triad': newNodes = deriveTriad(baseNode); break;
+                case 'tetrad': newNodes = deriveTetrad(baseNode); break;
+                case 'tint': newNodes = deriveTint(baseNode); break;
+                case 'shade': newNodes = deriveShade(baseNode); break;
+                case 'tone': newNodes = deriveTone(baseNode); break;
+                default: return;
+            }
+
+            newNodes.forEach(addNode);
+            renderTree();
+
+            const typeNames = {
+                analogous: '近似色',
+                complementary: '補色',
+                split: '分割補色',
+                triad: 'トライアド',
+                tetrad: 'テトラード',
+                tint: '明色',
+                shade: '暗色',
+                tone: '純色'
+            };
+            showNotification(`${baseNode.hex}から${typeNames[type]}を生成しました`, 'success');
+        }
+
+        // ======================
+        // Selection State
+        // ======================
+        function setNodeState(state) {
+            if (!treeState.selectedNodeId) return;
+            treeState.nodes[treeState.selectedNodeId].state = state;
+            renderTree();
+            updateSelectedNodeInfo();
+            updateStats();
+            saveToLocalStorage();
+
+            const stateNames = { adopted: '採用', pending: '保留', rejected: '破棄' };
+            showNotification(`色を${stateNames[state]}しました`, 'info');
+        }
+
+        function selectNode(nodeId) {
+            treeState.selectedNodeId = nodeId;
+
+            document.querySelectorAll('.color-node').forEach(node => {
+                node.classList.remove('selected');
+            });
+            const selectedElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (selectedElement) {
+                selectedElement.classList.add('selected');
+            }
+            updateSelectedNodeInfo();
+        }
+
+        function updateSelectedNodeInfo() {
+            const nodeId = treeState.selectedNodeId;
+            const currentSelectionArea = document.getElementById('currentSelectionArea');
+            const selectionHint = document.getElementById('selectionHint');
+            const branchButtons = document.querySelectorAll('.btn-group .btn');
+
+            if (!nodeId || !treeState.nodes[nodeId]) {
+                if (currentSelectionArea) currentSelectionArea.classList.remove('show');
+                if (selectionHint) selectionHint.style.display = 'block';
+                branchButtons.forEach(btn => btn.disabled = true);
+                return;
+            }
+
+            if (currentSelectionArea) currentSelectionArea.classList.add('show');
+            if (selectionHint) selectionHint.style.display = 'none';
+            branchButtons.forEach(btn => btn.disabled = false);
+
+            const node = treeState.nodes[nodeId];
+            const selDisp = document.getElementById('selectedNodeDisplay');
+            const selHex = document.getElementById('selectedNodeHex');
+            if (selDisp) selDisp.textContent = node.derivation.rule;
+            if (selHex) selHex.textContent = node.hex;
+
+            const ph = document.getElementById('popup-hex');
+            const pr = document.getElementById('popup-rgb');
+            const ps = document.getElementById('popup-hsl');
+            const pv = document.getElementById('popup-css-var');
+
+            if (ph) ph.textContent = node.hex;
+            if (pr) pr.textContent = `rgb(${node.rgb.r}, ${node.rgb.g}, ${node.rgb.b})`;
+            if (ps) ps.textContent = `hsl(${node.hsl.h}, ${node.hsl.s}%, ${node.hsl.l}%)`;
+            if (pv) pv.textContent = `--color-${node.derivation.rule}: ${node.hex}`;
+
+            document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`.state-btn.${node.state}`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // ======================
+        // Layout & Rendering
+        // ======================
+        function renderTree() {
+            const svg = document.getElementById('treeSvg');
+            if (!svg) return;
+
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+            const positions = calculateNodePositions();
+
+            const coords = Object.values(positions);
+            if (coords.length > 0) {
+                const pad = 200;
+                const maxX = Math.max(...coords.map(p => p.x)) + pad;
+                const minX = Math.min(...coords.map(p => p.x)) - pad;
+                const maxY = Math.max(...coords.map(p => p.y)) + pad;
+                const minY = Math.min(...coords.map(p => p.y)) - pad;
+
+                svg.setAttribute('width', maxX - minX);
+                svg.setAttribute('height', maxY - minY);
+                svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+            }
+
+            treeState.edges.forEach(edge => {
+                const fromPos = positions[edge.from];
+                const toPos   = positions[edge.to];
+                if (!fromPos || !toPos) return;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('class', 'connection-line');
+                line.setAttribute('x1', fromPos.x);
+                line.setAttribute('y1', fromPos.y);
+                line.setAttribute('x2', toPos.x);
+                line.setAttribute('y2', toPos.y);
+                svg.appendChild(line);
+            });
+
+            Object.values(treeState.nodes).forEach(node => {
+                const pos = positions[node.id];
+                if (!pos) return;
+
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', `color-node ${node.state}`);
+                g.setAttribute('data-node-id', node.id);
+                g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+                if (treeState.selectedNodeId === node.id) {
+                    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    glow.setAttribute('r', node.depth === 0 ? 38 : 33);
+                    glow.setAttribute('fill', 'none');
+                    glow.setAttribute('stroke', 'var(--accent-color)');
+                    glow.setAttribute('stroke-width', '3');
+                    glow.setAttribute('opacity', '0.6');
+                    g.appendChild(glow);
+                }
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('r', node.depth === 0 ? 32 : 28);
+                circle.setAttribute('fill', node.hex);
+                circle.setAttribute('class', `node-circle ${node.state}`);
+                g.appendChild(circle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('class', 'node-text');
+                text.setAttribute('y', node.depth === 0 ? 46 : 42);
+                text.setAttribute('font-size', '11');
+                text.setAttribute('font-weight', 'bold');
+                text.textContent = node.hex;
+                g.appendChild(text);
+
+                if (node.derivation.rule !== 'root') {
+                    const ruleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    ruleText.setAttribute('class', 'node-text');
+                    ruleText.setAttribute('y', node.depth === 0 ? 60 : 56);
+                    ruleText.setAttribute('font-size', '9');
+                    ruleText.setAttribute('opacity', '0.8');
+                    ruleText.textContent = node.derivation.rule;
+                    g.appendChild(ruleText);
+                }
+
+                g.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectNode(node.id);
+                });
+
+                g.addEventListener('touchend', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    selectNode(node.id);
+                });
+
+                svg.appendChild(g);
+            });
+
+            updateViewport();
+        }
+
+        function calculateNodePositions() {
+            const positions = {};
+            if (!treeState.rootId) return positions;
+
+            const H = 200;
+            const V = 160;
+
+            positions[treeState.rootId] = { x: 0, y: 0 };
+
+            function dfs(parentId, px, py) {
+                const children = Object.values(treeState.nodes).filter(n => n.parentId === parentId);
+                const n = children.length;
+                if (n === 0) return;
+
+                const childY = py + V;
+                const totalW = (n - 1) * H;
+                const startX = px - totalW / 2;
+
+                children.forEach((node, i) => {
+                    const cx = startX + i * H;
+                    positions[node.id] = { x: cx, y: childY };
+                    dfs(node.id, cx, childY);
+                });
+            }
+
+            dfs(treeState.rootId, 0, 0);
+            return positions;
+        }
+
+        // ======================
+        // Viewport & Zoom Control
+        // ======================
+        function centerView() {
+            treeState.viewport.x = 0;
+            treeState.viewport.y = 0;
+            treeState.viewport.scale = 1;
+            updateViewport();
+        }
+
+        function fitToView() {
+            centerView();
+        }
+
+        function resetZoom() {
+            treeState.viewport.scale = 1;
+            updateViewport();
+        }
+
+        function updateViewport() {
+            const svg = document.getElementById('treeSvg');
+            if (!svg) return;
+            svg.style.transform = `translate(${treeState.viewport.x}px, ${treeState.viewport.y}px) scale(${treeState.viewport.scale})`;
+        }
+
+        // ======================
+        // Data Management
+        // ======================
+        function clearTree() {
+            if (Object.keys(treeState.nodes).length === 0) {
+                showNotification('クリアする内容がありません', 'info');
+                return;
+            }
+            if (confirm('全ての色データを削除しますか？')) {
+                treeState.nodes = {};
+                treeState.edges = [];
+                treeState.rootId = null;
+                treeState.selectedNodeId = null;
+                renderTree();
+                updateSelectedNodeInfo();
+                updateStats();
+                saveToLocalStorage();
+                showNotification('全てのデータをクリアしました', 'success');
+            }
+        }
+
+        function saveToJSON() {
+            const dataStr = JSON.stringify(treeState, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `conefla-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+            showNotification('JSONファイルを保存しました', 'success');
+        }
+
+        function loadFromJSON() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) fileInput.click();
+        }
+
+        function handleFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    treeState = { ...treeState, ...data };
+                    if (!treeState.history) treeState.history = [];
+                    renderTree();
+                    updateSelectedNodeInfo();
+                    updateHistoryUI();
+                    updateStats();
+                    showNotification('JSONファイルを読み込みました', 'success');
+                } catch (error) {
+                    console.error(error);
+                    showNotification('ファイルの読み込みに失敗しました', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ======================
+        // Export Functions
+        // ======================
+        function exportPalette() {
+            if (treeState.history.length === 0) {
+                showNotification('履歴に色がありません', 'warning');
+                return;
+            }
+            generatePaletteImage(treeState.history, 'conefla-history');
+        }
+
+        function exportCSS() {
+            const adoptedNodes = Object.values(treeState.nodes).filter(n => n.state === 'adopted');
+            if (adoptedNodes.length === 0) {
+                showNotification('採用済みの色がありません', 'warning');
+                return;
+            }
+
+            let css = ':root {\n';
+            adoptedNodes.forEach((node, index) => {
+                css += `  --color-${node.derivation.rule}-${index + 1}: ${node.hex};\n`;
+            });
+            css += '}';
+
+            const blob = new Blob([css], { type: 'text/css' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `conefla-palette-${Date.now()}.css`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showNotification('CSSファイルを保存しました', 'success');
+        }
+
+        function generatePaletteImage(nodes, filename) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const cardWidth = 240;
+            const cardHeight = 120;
+            const padding = 20;
+            const cols = 2;
+            const rows = Math.ceil(nodes.length / cols);
+
+            canvas.width = cols * (cardWidth + padding) + padding;
+            canvas.height = rows * (cardHeight + padding) + padding + 60;
+
+            ctx.fillStyle = '#121212';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#4ecdc4';
+            ctx.font = 'bold 28px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('コネフラ - 探索履歴パレット', canvas.width / 2, 40);
+
+            nodes.forEach((item, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = padding + col * (cardWidth + padding);
+                const y = 60 + padding + row * (cardHeight + padding);
+
+                ctx.fillStyle = '#1f1f1f';
+                ctx.fillRect(x, y, cardWidth, cardHeight);
+                ctx.strokeStyle = '#333';
+                ctx.strokeRect(x, y, cardWidth, cardHeight);
+
+                ctx.fillStyle = item.hex;
+                ctx.fillRect(x + 10, y + 10, cardWidth - 20, 50);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(item.hex, x + 12, y + 80);
+
+                ctx.font = '12px Inter, sans-serif';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText(item.rule, x + 12, y + 100);
+
+                ctx.fillStyle = '#888';
+                ctx.font = '11px Inter, sans-serif';
+                ctx.fillText(formatTime(item.timestamp), x + 120, y + 100);
+            });
+
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${filename}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                showNotification('パレット画像を保存しました', 'success');
+            }, 'image/png');
+        }
+
+        // ======================
+        // Utilities
+        // ======================
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('クリップボードにコピーしました', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification('クリップボードにコピーしました', 'success');
+            });
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            if (!notification) return;
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // ======================
+        // Local Storage
+        // ======================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('conefla-state', JSON.stringify(treeState));
+            } catch (err) {
+                console.warn('Save failed:', err);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('conefla-state');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.version >= 2) {
+                        treeState = { ...treeState, ...data };
+                        if (!treeState.history) treeState.history = [];
+                        updateHistoryUI();
+                        updateStats();
+                        if (Object.keys(treeState.nodes).length > 0) {
+                            renderTree();
+                            updateSelectedNodeInfo();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Load failed:', err);
+            }
+        }
+
+        // ======================
+        // Event Listeners
+        // ======================
+        function setupEventListeners() {
+            const colorPicker = document.getElementById('colorPicker');
+            const hexInput = document.getElementById('hexInput');
+            const maxDepth = document.getElementById('maxDepth');
+
+            if (colorPicker && hexInput) {
+                colorPicker.addEventListener('change', e => {
+                    hexInput.value = e.target.value.toUpperCase();
+                });
+                hexInput.addEventListener('input', e => {
+                    let val = e.target.value.toUpperCase();
+                    if (val.length === 6 && !val.startsWith('#')) val = '#' + val;
+                    if (/^#[0-9A-F]{6}$/.test(val)) colorPicker.value = val;
+                });
+            }
+
+            if (maxDepth) {
+                maxDepth.addEventListener('input', e => {
+                    treeState.maxDepth = parseInt(e.target.value);
+                    const disp = document.getElementById('maxDepthValue');
+                    if (disp) disp.textContent = e.target.value;
+                    saveToLocalStorage();
+                });
+            }
+
+            // Canvas dragging
+            const canvas = document.getElementById('canvasContainer');
+            if (canvas) {
+                canvas.addEventListener('mousedown', startDrag);
+                canvas.addEventListener('mousemove', drag);
+                canvas.addEventListener('mouseup', endDrag);
+                canvas.addEventListener('wheel', handleWheel);
+                
+                canvas.addEventListener('touchstart', startDrag);
+                canvas.addEventListener('touchmove', drag);
+                canvas.addEventListener('touchend', endDrag);
+            }
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            const canvas = document.getElementById('canvasContainer');
+            canvas.classList.add('dragging');
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            dragStart.x = clientX - treeState.viewport.x;
+            dragStart.y = clientY - treeState.viewport.y;
+            viewportStart = { ...treeState.viewport };
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            treeState.viewport.x = clientX - dragStart.x;
+            treeState.viewport.y = clientY - dragStart.y;
+            updateViewport();
+            e.preventDefault();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            const canvas = document.getElementById('canvasContainer');
+            canvas.classList.remove('dragging');
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            treeState.viewport.scale = Math.max(0.5, Math.min(3, treeState.viewport.scale + delta));
+            updateViewport();
+        }
+
+        // ======================
+        // Initialization
+        // ======================
+        function initialize() {
+            try {
+                setupEventListeners();
+                loadFromLocalStorage();
+
+                const defaultColor = '#4ECDC4';
+                const hexInput = document.getElementById('hexInput');
+                const colorPicker = document.getElementById('colorPicker');
+                if (hexInput) hexInput.value = defaultColor;
+                if (colorPicker) colorPicker.value = defaultColor;
+
+                if (Object.keys(treeState.nodes).length === 0) {
+                    setRootColor();
+                } else {
+                    renderTree();
+                    updateSelectedNodeInfo();
+                }
+                centerView();
+                showNotification('コネフラへようこそ！', 'info');
+            } catch (err) {
+                console.error('Init error:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initialize);
+        setInterval(saveToLocalStorage, 30000);
+    </script>
 </body>
 </html>
