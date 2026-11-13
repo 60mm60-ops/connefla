@@ -364,13 +364,6 @@
                     <span id="themeIcon"></span><span id="themeLabel">ライト</span>
                 </button>
             </div>
-<nav class="fla-switch" aria-label="fla series">
-  <a href="https://grafla.vercel.app">Grafla</a>
-  <a href="https://colorfla.vercel.app">Colorfla</a>
-  <a href="https://colorfla-au5j.vercel.app" aria-current="page">Connefla</a>
-  <a href="https://minfla.vercel.app">Minfla</a>
-  <a href="https://swifla.vercel.app">Swifla</a>
-</nav>
 
             <div class="section">
                 <h3>基本色設定</h3>
@@ -1152,10 +1145,26 @@
 
 <style>
 /* ===== fla series switcher (common, Grafla standard) ===== */
-.fla-switch{display:flex;gap:15px;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;padding:9px 2px 11px;border-bottom:1px solid var(--border-color,#d8d8dc);margin-bottom:14px}
-.fla-switch a{color:var(--text-muted,#71717a);text-decoration:none;font-size:11.5px;font-weight:500;letter-spacing:.04em;line-height:1}
+.fla-switch{position:fixed;top:47px;left:18px;z-index:3000;display:flex;gap:15px;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif}
+.fla-switch a{color:var(--text-muted,#71717a);text-decoration:none;font-size:11.5px;font-weight:500;letter-spacing:.04em;padding:4px 1px;line-height:1}
 .fla-switch a:hover{color:var(--text-primary,#1c1c1f)}
 .fla-switch a[aria-current="page"]{color:var(--accent-color,#4ecdc4);font-weight:700}
+.fla-switch--dark a{color:#9a9a9a}
+.fla-switch--dark a:hover{color:#ffffff}
+.fla-switch--dark a[aria-current="page"]{color:#4ecdc4}
+@media (max-width:640px){
+  .fla-switch{top:auto;bottom:14px;left:50%;transform:translateX(-50%);gap:2px;padding:4px;background:var(--bg-surface,#ffffff);border:1px solid var(--border-color,#d8d8dc);border-radius:999px;box-shadow:0 4px 18px rgba(20,20,30,.13)}
+  .fla-switch a{padding:7px 11px;border-radius:999px;font-size:11px}
+  .fla-switch a[aria-current="page"]{background:var(--accent-color,#4ecdc4);color:var(--on-accent,#0a0a0a)}
+  .fla-switch--dark{background:#1a1a1a;border-color:#333}
+}
 </style>
+<nav class="fla-switch" aria-label="fla series">
+  <a href="https://grafla.vercel.app">Grafla</a>
+  <a href="https://colorfla.vercel.app">Colorfla</a>
+  <a href="https://colorfla-au5j.vercel.app" aria-current="page">Connefla</a>
+  <a href="https://minfla.vercel.app">Minfla</a>
+  <a href="https://swifla.vercel.app">Swifla</a>
+</nav>
 </body>
 </html>
